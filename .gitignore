@@ -58,8 +58,9 @@ models/*.joblib
 # 但是可以跟踪小的预训练模型描述文件
 
 # 数据文件（如果太大）
-data/*.csv
-data/*.xlsx
+#data/*.csv
+#data/*.xlsx
+!data/data.csv
 # 但是保留示例数据或元数据
 
 # 缓存
