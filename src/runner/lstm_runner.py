@@ -121,16 +121,27 @@ class LSTMPowerForecaster:
             batch_size=self.batch_size, shuffle=True
         )
         
+        # 准备验证数据
+        val_loss = None
+        if X_val_seq is not None:
+            X_val_tensor = torch.FloatTensor(X_val_seq).to(self.device)
+            y_val_tensor = torch.FloatTensor(y_val_seq).to(self.device).unsqueeze(1)
+            val_loader = DataLoader(
+                TensorDataset(X_val_tensor, y_val_tensor),
+                batch_size=self.batch_size, shuffle=False
+            )
+        
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         criterion = nn.MSELoss()
         
-        # 生成唯一的任务ID
+        # 生成唯一的任务 ID
         task_id = f"lstm_train_{int(time.time())}_{uuid.uuid4().hex[:8]}"
         tracker = get_training_tracker()
         tracker.start_training(task_id, self.epochs, "LSTM")
         
         self.model.train()
         for epoch in range(self.epochs):
+            # 训练阶段
             epoch_loss = 0.0
             for batch_X, batch_y in train_loader:
                 optimizer.zero_grad()
@@ -140,15 +151,39 @@ class LSTMPowerForecaster:
                 optimizer.step()
                 epoch_loss += loss.item()
             
-            # 更新进度
-            avg_loss = epoch_loss / len(train_loader)
-            tracker.update_progress(task_id, epoch + 1, loss=avg_loss)
+            # 计算平均训练损失
+            train_loss = epoch_loss / len(train_loader)
+            
+            # 验证阶段
+            if X_val_seq is not None:
+                self.model.eval()
+                val_epoch_loss = 0.0
+                with torch.no_grad():
+                    for batch_X, batch_y in val_loader:
+                        outputs = self.model(batch_X)
+                        loss = criterion(outputs, batch_y)
+                        val_epoch_loss += loss.item()
+                val_loss = val_epoch_loss / len(val_loader)
+                self.model.train()
+            
+            # 更新进度（同时记录训练损失和验证损失）
+            metrics = {'train_loss': train_loss}
+            if val_loss is not None:
+                metrics['val_loss'] = val_loss
+            
+            tracker.update_progress(task_id, epoch + 1, metrics=metrics)
             
             if verbose and (epoch + 1) % 5 == 0:
-                print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
+                if val_loss is not None:
+                    print(f"Epoch [{epoch+1}/{self.epochs}], Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
+                else:
+                    print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {train_loss:.6f}")
         
         # 标记训练完成
-        tracker.finish_training(task_id, success=True)
+        final_metrics = {'train_loss': train_loss}
+        if val_loss is not None:
+            final_metrics['val_loss'] = val_loss
+        tracker.finish_training(task_id, success=True, final_metrics=final_metrics)
         self.is_trained = True
         return self
     

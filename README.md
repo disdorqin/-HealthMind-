@@ -1,209 +1,84 @@
-<<<<<<< HEAD
-# 风芒可测——电力预测与交易优化系统
-
-⚡ 面向新能源消纳的多模型融合功率预测与交易优化系统
-
-## 项目简介
-
-本系统基于深度学习 LSTM 模型，结合分时电价机制，为新能源发电企业提供功率预测和交易优化建议。通过"谷时充电、峰时放电"的峰谷套利模式，帮助企业实现电费节约和收益最大化。
-
-## 功能特性
-
-### 📊 实时监控
-- 实时功率监测与预测对比
-- 一键同步最新数据并重新预测
-- 模型评估指标展示（MAE、RMSE、R²、MAPE）
-
-### 📈 多维预测
-- 天预测（24 小时）
-- 周预测（168 小时）
-- 月预测（720 小时）
-
-### 💰 交易助手
-- 买卖电时段建议
-- 预期收益与成本节约分析
-- 削峰填谷效果展示
-- 分时电价信息
-
-## 项目结构
-
+﻿# 风芒可测 - 多模型电力预测与交易优化平台
+## 1. 整体结构
+### 1.1 文件目录
+```text
+app.py                              # Streamlit 根入口（生产入口）
+main.py                             # 本地检查/自动训练/启动脚本
+requirements.txt                    # Python 依赖
+packages.txt                        # Streamlit Cloud 系统依赖
+.streamlit/
+  config.toml                       # Streamlit 配置
+  secrets.toml.example              # Secrets 模板
+src/
+  data/
+    data_service.py                 # 数据准备统一入口
+    dataset_builder.py              # 时序窗口构建与切分
+    feature_engineering.py          # 特征工程
+    mysql_client.py                 # Secrets 数据库配置读取
+  models/
+    base_model.py                   # 统一接口(train/predict/save/load)
+    lstm_model.py                   # LSTM
+    gru_model.py                    # GRU
+    xgboost_model.py                # XGBoost
+    moirai_model.py                 # Moirai(Zero-shot + lightweight)
+    stacking_manager.py             # 融合元学习器
+    model_registry.py               # 模型注册与工厂
+    model_service.py                # 前端直调服务层
+  utils/
+    env.py                          # Cloud环境检测与轻量模式
+    eta.py                          # 训练剩余时长估计
+    paths.py                        # 路径管理
+    progress.py                     # 进度事件结构
+  logic/
+    __init__.py                     # 业务兼容门面层
+    trade.py                        # 交易优化逻辑
+docs/
+  architecture.md                   # 架构文档
 ```
-项目根目录/
-├── main.py                          # 主入口（命令行训练/预测）
-├── src/
-│   ├── core/                        # 核心配置和工具
-│   │   ├── config/config_manager.py
-│   │   ├── exceptions/base.py
-│   │   └── utils/logger.py
-│   ├── pipeline/                    # 管道层
-│   │   └── lstm_pipeline.py         # LSTM 训练/预测管道
-│   ├── runner/                      # 执行器层
-│   │   ├── lstm_runner.py           # LSTM 模型核心实现
-│   │   └── pipeline_router.py       # 管道路由器
-│   ├── backend/                     # 后端 API
-│   │   └── api.py                   # Flask RESTful 服务
-│   ├── frontend/                    # 前端界面
-│   │   └── app.py                   # Streamlit 数据看板
-│   └── trade_logic/                 # 交易逻辑
-│       └── optimizer.py             # 交易优化算法
-├── models/                          # 模型保存目录
-├── data/                            # 数据目录
-└── requirements.txt                 # 依赖安装
-```
-
-## 快速开始
-
-### 1. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. 训练模型（可选，命令行方式）
-
-```bash
-python main.py --mode train
-```
-
-### 3. 启动后端 API 服务
-
-```bash
-python src/backend/api.py
-```
-
-后端将在 http://localhost:5000 启动，提供以下 API 接口：
-
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| `/api/health` | GET | 健康检查 |
-| `/api/run_all` | POST | 全链路执行（训练 + 预测） |
-| `/api/forecast/<scale>` | GET | 多尺度预测（day/week/month） |
-| `/api/trade/advice` | POST | 交易优化建议 |
-| `/api/data/plot` | GET | 绘图数据接口 |
-| `/api/metrics` | GET | 模型评估指标 |
-
-### 4. 启动前端界面
-
-打开新终端，运行：
-
-```bash
-streamlit run src/frontend/app.py
-```
-
-前端将在 http://localhost:8501 启动（自动打开浏览器）
-
-## API 接口详解
-
-### 全链路执行接口 `/api/run_all`
-
-```bash
-curl -X POST http://localhost:5000/api/run_all
-```
-
-响应示例：
-```json
-{
-  "status": "success",
-  "message": "全链路执行完成",
-  "training": {
-    "mae": 27364.18,
-    "rmse": 40705.78,
-    "r2": -0.82,
-    "mape": 15.5
-  },
-  "prediction": {
-    "count": 114677,
-    "min": 20.96,
-    "max": 34.29,
-    "mean": 25.5
-  }
-}
-```
-
-### 多尺度预测接口 `/api/forecast/<scale>`
-
-```bash
-# 天预测
-curl http://localhost:5000/api/forecast/day
-
-# 周预测
-curl http://localhost:5000/api/forecast/week
-
-# 月预测
-curl http://localhost:5000/api/forecast/month
-```
-
-### 交易优化接口 `/api/trade/advice`
-
-```bash
-curl -X POST http://localhost:5000/api/trade/advice
-```
-
-响应示例：
-```json
-{
-  "status": "success",
-  "data": {
-    "buy_advice": [
-      {
-        "hour": 2,
-        "power": 18.5,
-        "price": 0.504,
-        "reason": "低谷电价 (0.504 元/kWh)，适合充电储能"
-      }
-    ],
-    "sell_advice": [
-      {
-        "hour": 12,
-        "power": 32.1,
-        "price": 0.704,
-        "reason": "高峰电价 (0.704 元/kWh)，适合放电自用"
-      }
-    ],
-    "expected_revenue": 1234.56,
-    "cost_saving": 567.89
-  }
-}
-```
-
-## 技术栈
-
-| 层次 | 技术 | 说明 |
-|------|------|------|
-| 模型层 | PyTorch | LSTM 深度学习模型 |
-| 后端层 | Flask | RESTful API 服务 |
-| 前端层 | Streamlit + Pyecharts | 数据可视化看板 |
-| 数据库 | MySQL（可选） | 数据存储 |
-
-## 分时电价说明
-
-| 时段 | 时间 | 电价（元/kWh） | 建议操作 |
-|------|------|---------------|----------|
-| 高峰 | 11-14 点，18-23 点 | 0.704 | 卖电（放电/自用） |
-| 平段 | 其他时段 | 0.604 | 正常调度 |
-| 低谷 | 23-7 点 | 0.504 | 买电（充电/储能） |
-
-## 常见问题
-
-### Q: 后端 API 无法启动？
-A: 确保已安装 `flask` 和 `flask-cors`，检查端口 5000 是否被占用。
-
-### Q: 前端无法连接后端？
-A: 确保后端 API 已启动，检查 `API_BASE_URL` 配置是否正确。
-
-### Q: 模型训练失败？
-A: 检查 `data/data.csv` 文件是否存在，确保数据格式正确。
-
-## 参考文档
-
-- [项目计划书](计算机设计大赛准备.docx)
-- [架构文档](docs/architecture.md)
-- [项目数据流详解](项目数据流详解.md)
-
-## License
-
-MIT License
-=======
-# fengmang
-a project for  Computer Design Competition
->>>>>>> 6b05cadc612bf6e8b9a41368a593f1380381483b
+### 1.2 数据流
+1. CSV 数据进入 `src/data/feature_engineering.py` 进行数值化与时间特征提取。  
+2. `src/data/dataset_builder.py` 完成 lookback 窗口构造与 train/val/test 切分。  
+3. `src/models/model_service.py` 调用四类模型训练与推理。  
+4. `src/models/stacking_manager.py` 对基模型输出做线性融合得到最终预测。  
+5. `app.py` 将结果可视化并输出交易建议相关指标。  
+### 1.3 执行顺序
+- 本地总览：`python main.py`  
+- 仅训练：`python main.py --train-only`  
+- 仅前端：`streamlit run app.py`  
+- 云端部署：Streamlit Cloud 指向 `app.py`  
+### 1.4 业务逻辑
+- 训练阶段：支持多模型并行配置 + 融合学习。  
+- 预测阶段：支持单模型曲线与 stacking 融合曲线同屏对比。  
+- 决策阶段：基于预测功率 + 分时电价生成交易优化建议、收益与风险评估。  
+## 2. 核心技术
+### 2.1 技术栈
+- 前端：Streamlit  
+- 深度学习：PyTorch（LSTM/GRU）  
+- 机器学习：XGBoost + Scikit-learn（Stacking 元学习器）  
+- 大模型时序：Uni2TS/Moirai（零样本推理封装）  
+- 工程化：Pathlib、Secrets、Cloud lightweight 策略  
+### 2.2 技术体现
+- 统一模型接口，降低新增模型成本。  
+- 训练进度/ETA 实时反馈，提升可观测性。  
+- Cloud 下轻量模式自动启用，降低内存溢出风险。  
+- 旧 Flask 路由降级为 legacy，主链路保持单进程稳定。  
+### 2.3 相比传统电力预测的创新点
+- 从单模型升级为“深度模型 + 树模型 + 大模型”的融合预测框架。  
+- Moirai 引入零样本能力，在少标注/新场景下增强泛化能力。  
+- Stacking 元学习器将模型互补性转化为稳定收益提升。  
+- 将预测直接闭环到交易策略，形成“预测-决策一体化”。  
+### 2.4 前后端分布
+- 当前生产形态：单体 Streamlit（前后端逻辑在同一进程）。  
+- 模型服务层：`src/models/model_service.py`，供 UI 直接调用。  
+- 兼容形态：`src/backend/api.py` 保留 legacy 入口（默认禁用）。  
+## 3. 展示与价值
+### 3.1 结果展示
+- 数据页：原始数据规模与质量可视化。  
+- 训练页：模型进度、损失、ETA、训练摘要。  
+- 预测页：LSTM/GRU/XGBoost/Moirai/Stacking 同框曲线对比。  
+- 交易页：收益、成本、风险分层指标。  
+### 3.2 对企业产品的优点
+- 降低调度与交易决策延迟，提升运营效率。  
+- 提高预测鲁棒性，减少单模型失效带来的业务波动。  
+- 降低云端部署与运维复杂度，支持快速上线迭代。  
+- 形成可解释的业务闭环，便于对外展示与内部汇报。  

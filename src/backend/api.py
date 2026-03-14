@@ -1,13 +1,12 @@
-"""后端 API - Flask RESTful 服务
+"""Legacy Flask API entry.
 
-可以通过以下方式启动：
-1. python src/backend/api.py              # 直接运行
-2. python main.py --mode api-only        # 通过main.py启动
-3. python main.py --mode serve           # 作为完整系统的一部分启动
+This project now uses Streamlit + direct ModelService calls as the default
+production path. Flask is kept only for legacy compatibility.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -20,14 +19,19 @@ from src.core.utils.logger import logger
 
 
 def main():
-    """启动Flask应用"""
+    """Start Flask app only when explicitly enabled."""
+    if os.getenv("ENABLE_LEGACY_FLASK", "0").strip() not in {"1", "true", "True"}:
+        logger.error("Legacy Flask API is disabled by default.")
+        logger.error("Use Streamlit app entry instead: streamlit run app.py")
+        logger.error("Set ENABLE_LEGACY_FLASK=1 to force-start this legacy server.")
+        return
+
     app = create_api_app()
-    
-    logger.info("启动Flask API服务器...")
-    logger.info("访问地址：http://localhost:5000")
-    logger.info("API文档：http://localhost:5000/api/health")
-    
-    # 在生产环境中应使用WSGI服务器（如gunicorn）
+
+    logger.warning("Starting legacy Flask API server")
+    logger.warning("Default production entry is: streamlit run app.py")
+    logger.info("Legacy API address: http://localhost:5000")
+
     app.run(
         host='0.0.0.0',
         port=5000,
@@ -39,12 +43,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# 创建应用实例
-app = create_app()
-
-
-if __name__ == '__main__':
-    logger.info("启动 Flask API 服务...")
-    app.run(host='0.0.0.0', port=5000, debug=True)

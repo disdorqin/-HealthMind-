@@ -520,7 +520,7 @@ def _register_routes(app: Flask):
                 'current_epoch': '当前轮次',
                 'progress': '进度百分比',
                 'status': 'running/completed/failed',
-                'loss_history': [{'epoch': ..., 'loss': ..., 'timestamp': ...}, ...],
+                'loss_history': [{'epoch': ..., 'loss': ..., 'train_loss': ..., 'val_loss': ..., 'timestamp': ...}, ...],
                 'metrics': {},
                 'start_time': '开始时间戳'
             }

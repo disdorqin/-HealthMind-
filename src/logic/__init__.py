@@ -1,123 +1,104 @@
-"""业务逻辑层统一接口 - Streamlit 应用直接调用"""
+"""Business logic facade, now backed by src.models.ModelService."""
 
 from __future__ import annotations
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, List
+
 import numpy as np
-from pathlib import Path
 
 from src.core.utils.logger import logger
-from src.runner.pipeline_router import run_pipeline
-from src.logic.trade import TradeOptimizer, TimeOfUsePrice
+from src.logic.trade import TimeOfUsePrice, TradeOptimizer
+from src.models.model_service import ModelService
 
 
 class BusinessLogic:
-    """业务逻辑聚合器 - Streamlit 应用的核心业务接口"""
-    
+    """Compatibility facade used by app.py and main.py."""
+
     @staticmethod
-    def run_full_pipeline(data_path: str = 'data/data.csv', 
-                          model_path: str = 'models/lstm_forecaster.pth',
-                          epochs: int = 50, batch_size: int = 32) -> Dict[str, Any]:
-        """运行完整管道（数据导入->模型训练->预测）"""
-        logger.info("运行完整管道")
-        
-        try:
-            # 训练模型
-            train_result = run_pipeline('train_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-                'epochs': epochs,
-                'batch_size': batch_size,
-                'hidden_dim': 64,
-                'num_layers': 2,
-                'lookback': 24,
-            })
-            
-            # 运行预测
-            predict_result = run_pipeline('predict_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-            })
-            
-            logger.info("✓ 完整管道执行成功")
-            
-            return {
-                'status': 'success',
-                'message': '完整管道执行成功',
-                'training': train_result,
-                'prediction': {
-                    'count': predict_result.get('count'),
-                    'min': predict_result.get('min'),
-                    'max': predict_result.get('max'),
-                    'mean': predict_result.get('mean'),
-                }
-            }
-        except Exception as e:
-            logger.error(f"管道执行失败：{str(e)}")
-            return {
-                'status': 'error',
-                'message': f'管道执行失败：{str(e)}'
-            }
-    
+    def _build_service(data_path: str = "data/data.csv") -> ModelService:
+        return ModelService(data_path=data_path, model_dir="models", lookback=24)
+
     @staticmethod
-    def train_model(data_path: str = 'data/data.csv',
-                   model_path: str = 'models/lstm_forecaster.pth',
-                   epochs: int = 50, batch_size: int = 32) -> Dict[str, Any]:
-        """训练模型"""
-        logger.info("开始训练模型")
-        
+    def run_full_pipeline(
+        data_path: str = "data/data.csv",
+        model_path: str = "models/lstm_forecaster.pth",
+        epochs: int = 12,
+        batch_size: int = 128,
+    ) -> Dict[str, Any]:
+        logger.info("Running full multi-model pipeline")
         try:
-            result = run_pipeline('train_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-                'epochs': epochs,
-                'hidden_dim': 64,
-                'num_layers': 2,
-                'batch_size': batch_size,
-                'lookback': 24,
-            })
-            
+            service = BusinessLogic._build_service(data_path)
+            selected_models = ["lstm", "gru", "xgboost", "moirai"]
+            train_result = service.train(
+                selected_models=selected_models,
+                epochs=epochs,
+                batch_size=batch_size,
+            )
+            predict_result = service.predict(selected_models=selected_models, use_stacking=True, horizon=96)
+
+            stacking_values = predict_result.get("predictions", {}).get("stacking", [])
+            values = np.asarray(stacking_values, dtype=np.float32)
             return {
-                'status': 'success',
-                'message': '模型训练完成',
-                'result': result
+                "status": "success",
+                "message": "Full pipeline executed successfully",
+                "training": train_result,
+                "prediction": {
+                    "count": int(values.size),
+                    "min": float(values.min()) if values.size else 0.0,
+                    "max": float(values.max()) if values.size else 0.0,
+                    "mean": float(values.mean()) if values.size else 0.0,
+                    "predictions": stacking_values,
+                },
             }
-        except Exception as e:
-            logger.error(f"训练失败：{str(e)}")
-            return {
-                'status': 'error',
-                'message': f'训练失败：{str(e)}'
-            }
-    
+        except Exception as exc:
+            logger.error("Pipeline execution failed: %s", exc)
+            return {"status": "error", "message": f"Pipeline execution failed: {exc}"}
+
     @staticmethod
-    def predict(data_path: str = 'data/data.csv',
-               model_path: str = 'models/lstm_forecaster.pth') -> Dict[str, Any]:
-        """预测"""
-        logger.info("开始预测")
-        
+    def train_model(
+        data_path: str = "data/data.csv",
+        model_path: str = "models/lstm_forecaster.pth",
+        epochs: int = 12,
+        batch_size: int = 128,
+        selected_models: List[str] | None = None,
+    ) -> Dict[str, Any]:
+        logger.info("Start training models")
         try:
-            result = run_pipeline('predict_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-            })
-            
+            service = BusinessLogic._build_service(data_path)
+            model_list = selected_models or ["lstm", "gru", "xgboost", "moirai"]
+            result = service.train(model_list, epochs=epochs, batch_size=batch_size)
+            return {"status": "success", "message": "Model training completed", "result": result}
+        except Exception as exc:
+            logger.error("Training failed: %s", exc)
+            return {"status": "error", "message": f"Training failed: {exc}"}
+
+    @staticmethod
+    def predict(
+        data_path: str = "data/data.csv",
+        model_path: str = "models/lstm_forecaster.pth",
+        selected_models: List[str] | None = None,
+    ) -> Dict[str, Any]:
+        logger.info("Start prediction")
+        try:
+            service = BusinessLogic._build_service(data_path)
+            model_list = selected_models or ["lstm", "gru", "xgboost", "moirai"]
+            result = service.predict(model_list, use_stacking=True, horizon=96)
+            stacked = np.asarray(result["predictions"].get("stacking", []), dtype=np.float32)
             return {
-                'status': 'success',
-                'message': '预测完成',
-                'result': {
-                    'count': result.get('count'),
-                    'min': result.get('min'),
-                    'max': result.get('max'),
-                    'mean': result.get('mean'),
-                    'predictions': result.get('predictions'),
-                }
+                "status": "success",
+                "message": "Prediction completed",
+                "result": {
+                    "count": int(stacked.size),
+                    "min": float(stacked.min()) if stacked.size else 0.0,
+                    "max": float(stacked.max()) if stacked.size else 0.0,
+                    "mean": float(stacked.mean()) if stacked.size else 0.0,
+                    "predictions": result["predictions"],
+                    "ground_truth": result.get("ground_truth", []),
+                },
             }
-        except Exception as e:
-            logger.error(f"预测失败：{str(e)}")
-            return {
-                'status': 'error',
-                'message': f'预测失败：{str(e)}'
-            }
+        except Exception as exc:
+            logger.error("Prediction failed: %s", exc)
+            return {"status": "error", "message": f"Prediction failed: {exc}"}
     
     @staticmethod
     def get_trade_advice(data_path: str = 'data/data.csv',
@@ -126,14 +107,10 @@ class BusinessLogic:
         logger.info("获取交易建议")
         
         try:
-            # 获取最新预测数据
-            predict_result = run_pipeline('predict_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-            })
-            
-            # 提取24小时预测值
-            predictions = predict_result.get('predictions', [])
+            # 获取最新预测数据（优先使用stacking）
+            predict_result = BusinessLogic.predict(data_path=data_path, model_path=model_path)
+            pred_payload = predict_result.get('result', {}).get('predictions', {})
+            predictions = pred_payload.get('stacking') or pred_payload.get('lstm') or []
             if len(predictions) < 24:
                 avg_pred = np.mean(predictions) if predictions else 500
                 predictions = list(predictions) + [avg_pred] * (24 - len(predictions))
@@ -166,13 +143,10 @@ class BusinessLogic:
         logger.info("获取交易指标")
         
         try:
-            # 获取预测数据
-            predict_result = run_pipeline('predict_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-            })
-            
-            predictions = predict_result.get('predictions', [])
+            # 获取预测数据（优先使用stacking）
+            predict_result = BusinessLogic.predict(data_path=data_path, model_path=model_path)
+            pred_payload = predict_result.get('result', {}).get('predictions', {})
+            predictions = pred_payload.get('stacking') or pred_payload.get('lstm') or []
             if len(predictions) < 24:
                 avg_pred = np.mean(predictions) if predictions else 500
                 predictions = list(predictions) + [avg_pred] * (24 - len(predictions))
@@ -203,13 +177,10 @@ class BusinessLogic:
         logger.info("进行交易风险分析")
         
         try:
-            # 获取预测数据
-            predict_result = run_pipeline('predict_lstm', {
-                'data_path': data_path,
-                'model_path': model_path,
-            })
-            
-            predictions = predict_result.get('predictions', [])
+            # 获取预测数据（优先使用stacking）
+            predict_result = BusinessLogic.predict(data_path=data_path, model_path=model_path)
+            pred_payload = predict_result.get('result', {}).get('predictions', {})
+            predictions = pred_payload.get('stacking') or pred_payload.get('lstm') or []
             if len(predictions) < 24:
                 avg_pred = np.mean(predictions) if predictions else 500
                 predictions = list(predictions) + [avg_pred] * (24 - len(predictions))

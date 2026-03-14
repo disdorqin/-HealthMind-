@@ -47,12 +47,27 @@ class TrainingProgressTracker:
                 progress_data['current_epoch'] = current_epoch
                 progress_data['progress'] = min(current_epoch / total_epochs * 100, 100.0)
                 
+                # 构建损失历史记录（支持 train_loss 和 val_loss）
+                loss_entry = {
+                    'epoch': current_epoch,
+                    'timestamp': time.time()
+                }
+                
+                # 兼容旧的 loss 参数
                 if loss is not None:
-                    progress_data['loss_history'].append({
-                        'epoch': current_epoch,
-                        'loss': loss,
-                        'timestamp': time.time()
-                    })
+                    loss_entry['loss'] = loss
+                
+                # 支持新的 metrics 参数（train_loss, val_loss 等）
+                if metrics:
+                    if 'train_loss' in metrics:
+                        loss_entry['train_loss'] = metrics['train_loss']
+                    if 'val_loss' in metrics:
+                        loss_entry['val_loss'] = metrics['val_loss']
+                    # 如果没有单独的 loss 字段，使用 train_loss 作为默认 loss
+                    if 'loss' not in loss_entry and 'train_loss' in metrics:
+                        loss_entry['loss'] = metrics['train_loss']
+                
+                progress_data['loss_history'].append(loss_entry)
                 
                 if metrics:
                     progress_data['metrics'].update(metrics)

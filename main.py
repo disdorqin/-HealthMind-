@@ -39,7 +39,7 @@ def get_paths() -> dict:
     return {
         'root': project_root,
         'data': project_root / 'data' / 'data.csv',
-        'model': project_root / 'models' / 'lstm_forecaster.pth',
+        'models_dir': project_root / 'models',
         'app': project_root / 'app.py',
     }
 
@@ -101,18 +101,22 @@ def check_model_layer() -> bool:
     logger.info("="*80)
     
     paths = get_paths()
-    model_path = paths['model']
-    
-    if model_path.exists():
-        logger.info(f"✓ 模型文件存在：{model_path}")
-        file_size = model_path.stat().st_size / (1024 * 1024)
-        logger.info(f"  文件大小：{file_size:.2f} MB")
+    models_dir = paths['models_dir']
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    candidates = list(models_dir.glob('*_model.bin')) + list(models_dir.glob('stacking_meta.bin'))
+
+    if candidates:
+        logger.info(f"✓ 检测到模型文件数量：{len(candidates)}")
+        total_size = sum(p.stat().st_size for p in candidates) / (1024 * 1024)
+        logger.info(f"  模型目录：{models_dir}")
+        logger.info(f"  总大小：{total_size:.2f} MB")
         logger.info("✓ 模型校验通过")
         return True
-    else:
-        logger.warning(f"⚠️  模型文件不存在：{model_path}")
-        logger.info("  需要进行模型训练")
-        return False
+
+    logger.warning(f"⚠️  模型文件不存在：{models_dir}")
+    logger.info("  需要进行模型训练")
+    return False
 
 
 # ============================================================
@@ -132,23 +136,24 @@ def auto_train_model() -> bool:
     
     paths = get_paths()
     data_path = str(paths['data'])
-    model_path = str(paths['model'])
-    
-    # 创建模型目录
-    Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+    model_path = str(paths['models_dir'] / 'lstm_model.bin')
+    paths['models_dir'].mkdir(parents=True, exist_ok=True)
     
     try:
         logger.info("启动模型训练...")
+        train_start = time.time()
         
         result = BusinessLogic.run_full_pipeline(
             data_path=data_path,
             model_path=model_path,
-            epochs=50,
-            batch_size=32
+            epochs=12,
+            batch_size=128
         )
+        elapsed = time.time() - train_start
         
         if result['status'] == 'success':
             logger.info("✓ 模型训练成功")
+            logger.info(f"  训练耗时：{elapsed/60:.2f} 分钟")
             if 'training' in result:
                 logger.info(f"  训练结果：{result.get('training')}")
             if 'prediction' in result:
@@ -156,6 +161,7 @@ def auto_train_model() -> bool:
             return True
         else:
             logger.error(f"✗ 模型训练失败：{result.get('message')}")
+            logger.info(f"  失败前耗时：{elapsed/60:.2f} 分钟")
             return False
     
     except Exception as e:

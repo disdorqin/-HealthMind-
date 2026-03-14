@@ -32,7 +32,7 @@ def setup_logger(
     logger = logging.getLogger(name)
     logger.setLevel(level)
     
-    # Avoid adding handlers multiple times
+    # Avoid adding multiple handlers
     if logger.handlers:
         return logger
     
@@ -43,12 +43,12 @@ def setup_logger(
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
     
-    # File handler
+    # File handler with UTF-8 encoding
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setLevel(level)
         file_formatter = logging.Formatter(format_string)
         file_handler.setFormatter(file_formatter)
