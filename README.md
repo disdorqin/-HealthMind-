@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 风芒可测——电力预测与交易优化系统
 
 ⚡ 面向新能源消纳的多模型融合功率预测与交易优化系统
@@ -202,3 +203,7 @@ A: 检查 `data/data.csv` 文件是否存在，确保数据格式正确。
 ## License
 
 MIT License
+=======
+# fengmang
+a project for  Computer Design Competition
+>>>>>>> 6b05cadc612bf6e8b9a41368a593f1380381483b
