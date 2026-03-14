@@ -6,6 +6,8 @@ from typing import Any, Dict
 
 from src.pipeline.lstm_pipeline import LSTMPipeline, LSTMPipelineResult
 
+from src.core.utils.training_progress import get_training_tracker
+
 
 class PipelineRouter:
     """管道路由器"""

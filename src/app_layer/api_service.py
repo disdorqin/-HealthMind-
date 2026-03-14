@@ -9,6 +9,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from src.core.utils.logger import logger
+from src.core.utils.training_progress import get_training_tracker
 
 
 def create_api_app() -> Flask:
@@ -498,4 +499,66 @@ def _register_routes(app: Flask):
             return jsonify({
                 'status': 'error',
                 'message': f'获取模型状态失败：{str(e)}'
+            }), 500
+    
+    # ============================================================
+    # 训练进度相关API
+    # ============================================================
+    
+    @app.route('/api/training/progress', methods=['GET'])
+    def get_training_progress() -> Dict[str, Any]:
+        """
+        获取训练进度
+        
+        返回：
+        {
+            'status': 'success/error',
+            'data': {
+                'task_id': '任务ID',
+                'model_name': '模型名称',
+                'total_epochs': '总轮数',
+                'current_epoch': '当前轮次',
+                'progress': '进度百分比',
+                'status': 'running/completed/failed',
+                'loss_history': [{'epoch': ..., 'loss': ..., 'timestamp': ...}, ...],
+                'metrics': {},
+                'start_time': '开始时间戳'
+            }
+        }
+        """
+        try:
+            tracker = get_training_tracker()
+            # 从查询参数获取任务ID，如果没有则返回当前任务
+            task_id = request.args.get('task_id', None)
+            if not task_id:
+                # 如果没有指定任务ID，返回当前正在跟踪的任务
+                progress_data = tracker._load_progress()  # 使用私有方法获取当前进度
+                if not progress_data:
+                    return jsonify({
+                        'status': 'success',
+                        'message': '无正在进行的训练任务',
+                        'data': None
+                    })
+                return jsonify({
+                    'status': 'success',
+                    'data': progress_data
+                })
+            else:
+                progress_data = tracker.get_progress(task_id)
+                if progress_data:
+                    return jsonify({
+                        'status': 'success',
+                        'data': progress_data
+                    })
+                else:
+                    return jsonify({
+                        'status': 'success',
+                        'message': '未找到指定任务的进度信息',
+                        'data': None
+                    })
+        except Exception as e:
+            logger.error(f"获取训练进度失败：{str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': f'获取训练进度失败：{str(e)}'
             }), 500

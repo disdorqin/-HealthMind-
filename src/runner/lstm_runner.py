@@ -8,6 +8,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from pathlib import Path
+import time
+import uuid
+
+from src.core.utils.training_progress import get_training_tracker
 
 
 class LSTMModel(nn.Module):
@@ -120,6 +124,11 @@ class LSTMPowerForecaster:
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         criterion = nn.MSELoss()
         
+        # 生成唯一的任务ID
+        task_id = f"lstm_train_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+        tracker = get_training_tracker()
+        tracker.start_training(task_id, self.epochs, "LSTM")
+        
         self.model.train()
         for epoch in range(self.epochs):
             epoch_loss = 0.0
@@ -131,9 +140,15 @@ class LSTMPowerForecaster:
                 optimizer.step()
                 epoch_loss += loss.item()
             
+            # 更新进度
+            avg_loss = epoch_loss / len(train_loader)
+            tracker.update_progress(task_id, epoch + 1, loss=avg_loss)
+            
             if verbose and (epoch + 1) % 5 == 0:
-                print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {epoch_loss/len(train_loader):.6f}")
+                print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.6f}")
         
+        # 标记训练完成
+        tracker.finish_training(task_id, success=True)
         self.is_trained = True
         return self
     

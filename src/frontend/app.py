@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from streamlit_echarts import st_echarts
+import json
 
 # 页面配置
 st.set_page_config(
@@ -171,12 +172,196 @@ def run_full_pipeline_via_api() -> bool:
         return False
 
 
+def show_training_progress():
+    """显示模型训练进度的可视化界面"""
+    st.subheader("📊 模型训练进度")
+    
+    # 获取当前训练进度
+    progress_response = make_api_request("/api/training/progress", use_cache=False)
+    
+    if progress_response and progress_response.get('status') == 'success':
+        progress_data = progress_response.get('data')
+        if progress_data:
+            # 显示进度信息
+            st.write(f"**模型类型**: {progress_data.get('model_name', 'N/A')}")
+            st.write(f"**总轮数**: {progress_data.get('total_epochs', 0)}")
+            st.write(f"**当前轮次**: {progress_data.get('current_epoch', 0)}")
+            st.write(f"**训练状态**: {progress_data.get('status', 'N/A')}")
+            
+            # 进度条
+            current_progress = progress_data.get('progress', 0)
+            st.progress(current_progress / 100, text=f"进度: {current_progress:.1f}%")
+            
+            # 当前损失值
+            loss_history = progress_data.get('loss_history', [])
+            if loss_history:
+                latest_loss = loss_history[-1]['loss'] if loss_history else None
+                if latest_loss is not None:
+                    st.metric("当前损失值", f"{latest_loss:.6f}")
+            
+            # 显示损失变化图表
+            if len(loss_history) > 1:
+                loss_df = pd.DataFrame(loss_history)
+                st.line_chart(loss_df.set_index('epoch')['loss'], height=200)
+        else:
+            st.info("当前没有正在进行的训练任务")
+    else:
+        st.info("当前没有正在进行的训练任务")
+
+
+def run_training_with_progress() -> bool:
+    """
+    通过 API 触发后端运行模型训练并显示进度
+    
+    Returns:
+        True 如果成功，False 如果失败
+    """
+    try:
+        # 获取用户输入的参数
+        epochs_input = st.number_input("训练轮数", min_value=1, max_value=500, value=50, step=10, key="epochs_input")
+        batch_size_input = st.number_input("批次大小", min_value=1, max_value=1024, value=32, step=8, key="batch_size_input")
+        hidden_dim_input = st.number_input("隐藏层维度", min_value=8, max_value=512, value=64, step=8, key="hidden_dim_input")
+        num_layers_input = st.number_input("网络层数", min_value=1, max_value=10, value=2, step=1, key="num_layers_input")
+        
+        # 预估训练时间（根据参数估算，单位：秒）
+        estimated_time = epochs_input * 0.5  # 简单估算：每轮约0.5秒，实际会根据数据和复杂度变化
+        if batch_size_input > 64:
+            estimated_time *= 0.8  # 批次大些，速度会快一些
+        elif batch_size_input < 16:
+            estimated_time *= 1.5  # 批次小些，速度会慢一些
+        estimated_time *= (hidden_dim_input / 64)  # 隐藏层维度影响
+        estimated_time *= (num_layers_input / 2)   # 层数影响
+        
+        # 显示预估时间
+        st.info(f"⏱️ 预估训练时间: {estimated_time:.1f} 秒 ({estimated_time/60:.1f} 分钟)")
+        
+        # 开始训练请求
+        with st.spinner("🚀 初始化模型训练..."):
+            train_params = {
+                "epochs": int(epochs_input),
+                "batch_size": int(batch_size_input),
+                "hidden_dim": int(hidden_dim_input),
+                "num_layers": int(num_layers_input)
+            }
+            response = requests.post(f"{API_BASE_URL}/api/train", timeout=BACKEND_TIMEOUT, json=train_params)
+            if response.status_code != 200:
+                st.error(f"❌ 训练请求失败：{response.status_code}")
+                return False
+
+        # 创建进度展示区
+        progress_placeholder = st.empty()
+        status_text = st.empty()
+        chart_placeholder = st.empty()
+        loss_metric = st.empty()
+        eta_text = st.empty()  # 预估剩余时间显示
+
+        # 循环获取训练进度
+        training_complete = False
+        start_time = time.time()
+        timeout_seconds = 3600  # 1小时超时
+        last_update_time = time.time()
+        last_progress = 0
+
+        while not training_complete and (time.time() - start_time) < timeout_seconds:
+            # 获取进度信息
+            progress_response = make_api_request("/api/training/progress", use_cache=False)
+            
+            if progress_response and progress_response.get('status') == 'success':
+                progress_data = progress_response.get('data')
+                if progress_data:
+                    current_epoch = progress_data.get('current_epoch', 0)
+                    total_epochs = progress_data.get('total_epochs', 1)
+                    current_progress = progress_data.get('progress', 0)
+                    status = progress_data.get('status', 'running')
+                    loss_history = progress_data.get('loss_history', [])
+                    
+                    # 计算ETA (Estimated Time of Arrival)
+                    elapsed_time = time.time() - start_time
+                    if current_progress > 0 and current_progress > last_progress:
+                        estimated_total_time = elapsed_time / (current_progress / 100)
+                        remaining_time = estimated_total_time - elapsed_time
+                        
+                        # 更新进度条
+                        with progress_placeholder.container():
+                            st.write(f"**训练进度**: {current_epoch}/{total_epochs} 轮")
+                            st.progress(current_progress / 100, text=f"进度: {current_progress:.1f}%")
+                        
+                        # 更新ETA显示
+                        eta_text.write(f"**预估剩余时间**: {remaining_time/60:.1f} 分钟 ({remaining_time:.0f} 秒)")
+                        
+                        # 更新状态文本
+                        status_text.write(f"**状态**: {status} | **当前轮次**: {current_epoch}/{total_epochs}")
+                        
+                        # 更新损失值
+                        if loss_history:
+                            latest_loss = loss_history[-1]['loss']
+                            loss_metric.metric("当前损失值", f"{latest_loss:.6f}")
+                        
+                        # 显示损失图表
+                        if len(loss_history) > 1:
+                            loss_df = pd.DataFrame(loss_history)
+                            chart_placeholder.line_chart(loss_df.set_index('epoch')['loss'], height=200)
+                        
+                        # 更新最后进度和时间
+                        last_progress = current_progress
+                        last_update_time = time.time()
+                    else:
+                        # 更新进度条
+                        with progress_placeholder.container():
+                            st.write(f"**训练进度**: {current_epoch}/{total_epochs} 轮")
+                            st.progress(current_progress / 100, text=f"进度: {current_progress:.1f}%")
+                        
+                        # 更新状态文本
+                        status_text.write(f"**状态**: {status} | **当前轮次**: {current_epoch}/{total_epochs}")
+                        
+                        # 更新损失值
+                        if loss_history:
+                            latest_loss = loss_history[-1]['loss']
+                            loss_metric.metric("当前损失值", f"{latest_loss:.6f}")
+                        
+                        # 显示损失图表
+                        if len(loss_history) > 1:
+                            loss_df = pd.DataFrame(loss_history)
+                            chart_placeholder.line_chart(loss_df.set_index('epoch')['loss'], height=200)
+                    
+                    # 检查训练是否完成
+                    if status in ['completed', 'failed']:
+                        training_complete = True
+                        eta_text.empty()  # 清除ETA显示
+                        if status == 'completed':
+                            st.success("✅ 模型训练完成！")
+                            return True
+                        else:
+                            st.error("❌ 模型训练失败！")
+                            return False
+                else:
+                    status_text.write("等待训练开始...")
+                    eta_text.write("**预估剩余时间**: 计算中...")
+            else:
+                status_text.write("无法获取训练进度信息")
+                eta_text.write("**预估剩余时间**: -")
+            
+            time.sleep(2)  # 每2秒更新一次
+
+        if not training_complete:
+            eta_text.empty()  # 清除ETA显示
+            st.error("⏰ 训练超时，请检查后端服务状态")
+            return False
+
+    except requests.exceptions.Timeout:
+        st.error("❌ 请求超时，后端可能在处理中，请稍候...")
+        return False
+    except Exception as e:
+        st.error(f"❌ 训练失败：{str(e)}")
+        return False
+
+
 def render_sync_and_predict():
     """渲染一键同步/预测页面"""
     st.title("⚡ 一键同步与预测")
     st.markdown("点击下方按钮可一次性完成数据同步、模型验证和预测任务")
     
-    # 大按钮
+    # 添加单独的训练按钮和进度显示
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.button("🚀 执行完整流程", use_container_width=True, key="run_pipeline"):
@@ -187,6 +372,25 @@ def render_sync_and_predict():
                 st.rerun()
             else:
                 st.error("❌ 流程执行失败，请查看错误信息")
+    
+    # 单独的模型训练部分
+    st.markdown("---")
+    st.markdown("### 🤖 模型训练控制台")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        if st.button("🎯 开始模型训练", use_container_width=True, key="train_model"):
+            if run_training_with_progress():
+                st.success("🎉 模型训练成功完成！")
+            else:
+                st.error("💥 模型训练失败！")
+    with col2:
+        # 刷新进度按钮
+        if st.button("🔄 刷新进度", use_container_width=True):
+            st.rerun()
+    
+    # 显示训练进度
+    show_training_progress()
     
     st.markdown("---")
     

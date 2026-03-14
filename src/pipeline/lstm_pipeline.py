@@ -12,6 +12,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from src.runner.lstm_runner import LSTMPowerForecaster
 
+from src.core.utils.training_progress import get_training_tracker
+
 
 @dataclass
 class LSTMPipelineResult:
@@ -128,6 +130,7 @@ class LSTMPipeline:
             'batch_size': self.batch_size,
         })
         
+        # 训练模型（此方法已在LSTMPowerForecaster中集成进度跟踪）
         self.model.fit(X, y, validation_split=0.2, verbose=False)
         
         # 评估
