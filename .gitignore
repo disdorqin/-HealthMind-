@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 敏感文件 - 绝不提交！
+.env
+.env.local
+.env.*.local
+.streamlit/secrets.toml
+secrets.toml
+*.pem
+*.key
+*.crt
+
+# 日志
+logs/
+*.log
+**/logs/*.log
+
+# 模型文件（如果太大）
+models/*.pth
+models/*.joblib
+# 但是可以跟踪小的预训练模型描述文件
+
+# 数据文件（如果太大）
+data/*.csv
+data/*.xlsx
+# 但是保留示例数据或元数据
+
+# 缓存
+.cache/
+cache/
+*.cache
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Streamlit 缓存
+.streamlit/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 部署相关
+.pm2/
+pm2.json
+ecosystem.config.js
+ecosystem.config.*.js
+
+# 容器
+.docker/
+docker-compose.override.yml

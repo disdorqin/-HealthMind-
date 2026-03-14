@@ -1,0 +1,45 @@
+# Default configuration for power forecasting system
+
+database:
+  host: "localhost"
+  port: 3306
+  username: "root"
+  password: ""
+  database: "power_trading"
+  dialect: "mysql"
+  driver: "pymysql"
+
+model:
+  input_dim: 19
+  hidden_dim: 64
+  num_layers: 2
+  dropout: 0.2
+  lookback: 24
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.001
+
+data:
+  data_path: "data/data.csv"
+  test_size: 0.2
+  random_state: 42
+  target_column: "actual_power"
+
+api:
+  host: "localhost"
+  port: 5000
+  debug: true
+
+logging:
+  level: "INFO"
+  file: "logs/app.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+
+training:
+  validation_split: 0.2
+  early_stopping_patience: 5
+  model_save_path: "models/lstm_power_forecaster.pth"
+
+prediction:
+  default_horizon: 24
+  result_save_path: "results/predictions.csv"
