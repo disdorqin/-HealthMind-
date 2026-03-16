@@ -6,6 +6,8 @@ from typing import Dict, Any
 
 import os
 
+from config import get_database_settings
+
 
 def _load_secrets_from_toml() -> Dict[str, Any]:
     secrets_file = Path(".streamlit") / "secrets.toml"
@@ -31,7 +33,10 @@ def read_db_config() -> Dict[str, Any]:
         pass
 
     secrets = _load_secrets_from_toml()
-    return dict(secrets.get("database", {}))
+    if secrets.get("database"):
+        return dict(secrets.get("database", {}))
+
+    return get_database_settings()
 
 
 @dataclass

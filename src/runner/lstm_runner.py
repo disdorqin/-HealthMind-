@@ -103,7 +103,18 @@ class LSTMPowerForecaster:
         X = X.astype(np.float32)
         y = y.astype(np.float32)
         
-        X_seq, y_seq = self._create_sequences(X, y, self.sequence_length)
+        # If data is already 3D (samples, sequence_length, features), skip sequencing
+        if X.ndim == 3:
+            X_seq = X
+            y_seq = y
+            # Ensure y matches X length
+            if len(y) != len(X):
+                # If y is provided as raw target series (longer than X due to windowing), align it?
+                # Usually pre-processing returns aligned X and y.
+                # Assuming y is already aligned (samples,)
+                pass
+        else:
+            X_seq, y_seq = self._create_sequences(X, y, self.sequence_length)
         
         n_val = int(len(X_seq) * validation_split)
         if n_val > 0:

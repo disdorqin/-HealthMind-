@@ -1,357 +1,502 @@
 #!/usr/bin/env python3
 """
-本地一键测试脚本 - 数据导入->模型训练->启动前端
+EcoLife Interactive Internal Testing Platform
+Refactored for Model Tuning & Stacking Comparison.
 
-功能：
-1. 检查数据文件
-2. 自动训练模型（如果不存在）
-3. 启动 Streamlit 应用
-
-使用：
-    python main.py              # 默认启动 Streamlit 应用
-    python main.py --train-only # 仅训练模型
-    python main.py --help       # 显示帮助
+支持两种运行模式：
+1. 命令行参数模式：python main.py --train --stack --models 1,3
+2. 交互模式：python main.py (直接回车进入交互式)
 """
 
-import argparse
+import os
 import sys
-import subprocess
 import time
-from pathlib import Path
-from typing import Tuple
-
+import argparse
+import logging
+import yaml
+import json
+import joblib
+import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple, Union
+from datetime import datetime
 
-# 添加项目根目录到路径
-project_root = Path(__file__).resolve().parent
-sys.path.insert(0, str(project_root))
+# scientific computing
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, accuracy_score, precision_score, recall_score, f1_score
+from xgboost import XGBRegressor
+
+# Local Imports
+# Ensure project root is in path
+sys.path.append(str(Path(__file__).resolve().parent))
 
 from src.core.utils.logger import logger
-from src.logic import BusinessLogic
+from src.models.lstm_model import LSTMForecastModel
+from src.models.gru_model import GRUForecastModel
+from src.models.xgboost_model import XGBoostForecastModel
+from src.models.moirai_model import MoiraiZeroShotModel
+from src.data.lstm_processing import process_data_for_lstm
+from src.data.xgboost_processing import process_data_for_xgboost
+from src.data.moirai_processing import process_data_for_moirai
+
+# --- Configuration Constants ---
+LOG_DIR = Path("logs")
+PLOT_DIR = LOG_DIR / "plots"
+RESULTS_FILE = LOG_DIR / "test_results.csv"
+CHECKPOINT_DIR = Path("models/checkpoints")
+
+# Ensure directories exist
+LOG_DIR.mkdir(exist_ok=True)
+PLOT_DIR.mkdir(parents=True, exist_ok=True)
+CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Carbon Footprint Thresholds (kg/day)
+# Baseline approx 12.5. 
+# Low < 10, High > 15, Middle [10, 15]
+THRESHOLD_LOW = 10.0
+THRESHOLD_HIGH = 15.0
+
+# Model Map
+MODEL_MAP = {'1': 'LSTM', '2': 'GRU', '3': 'XGBoost', '4': 'Moirai'}
 
 
-# ============================================================
-# 1. 路径配置（跨平台兼容）
-# ============================================================
-
-def get_paths() -> dict:
-    """获取所有重要的路径"""
-    return {
-        'root': project_root,
-        'data': project_root / 'data' / 'data.csv',
-        'models_dir': project_root / 'models',
-        'app': project_root / 'app.py',
-    }
-
-
-# ============================================================
-# 2. 数据层检测
-# ============================================================
-
-def check_data_layer() -> bool:
-    """
-    检查数据层 - 验证数据文件是否存在
+class UnifiedEvaluator:
+    """Handles Metric Calculation, Visualization, and Logging."""
     
-    Returns:
-        True 如果数据文件存在，False 否则
-    """
-    logger.info("\n" + "="*80)
-    logger.info("[1/4] 数据层检测 - 验证数据文件")
-    logger.info("="*80)
-    
-    paths = get_paths()
-    data_path = paths['data']
-    
-    if data_path.exists():
-        logger.info(f"✓ 数据文件存在：{data_path}")
-        
-        # 获取文件信息
-        file_size = data_path.stat().st_size / (1024 * 1024)
-        logger.info(f"  文件大小：{file_size:.2f} MB")
-        
-        # 尝试读取前几行验证格式
-        try:
-            df = pd.read_csv(data_path, nrows=5)
-            logger.info(f"  数据形状：{df.shape}")
-            logger.info(f"  列名：{list(df.columns)[:5]}")
-            logger.info("✓ 数据层检测通过")
-            return True
-        except Exception as e:
-            logger.error(f"✗ 数据文件格式错误：{str(e)}")
-            return False
-    else:
-        logger.error(f"✗ 数据文件不存在：{data_path}")
-        logger.warning("  请确保数据文件位置正确")
-        return False
-
-
-# ============================================================
-# 3. 模型层检测
-# ============================================================
-
-def check_model_layer() -> bool:
-    """
-    检查模型层 - 验证模型文件是否完整
-    
-    Returns:
-        True 如果模型文件存在，False 否则
-    """
-    logger.info("\n" + "="*80)
-    logger.info("[2/4] 模型校验 - 检查模型文件")
-    logger.info("="*80)
-    
-    paths = get_paths()
-    models_dir = paths['models_dir']
-    models_dir.mkdir(parents=True, exist_ok=True)
-
-    candidates = list(models_dir.glob('*_model.bin')) + list(models_dir.glob('stacking_meta.bin'))
-
-    if candidates:
-        logger.info(f"✓ 检测到模型文件数量：{len(candidates)}")
-        total_size = sum(p.stat().st_size for p in candidates) / (1024 * 1024)
-        logger.info(f"  模型目录：{models_dir}")
-        logger.info(f"  总大小：{total_size:.2f} MB")
-        logger.info("✓ 模型校验通过")
-        return True
-
-    logger.warning(f"⚠️  模型文件不存在：{models_dir}")
-    logger.info("  需要进行模型训练")
-    return False
-
-
-# ============================================================
-# 4. 模型自动训练
-# ============================================================
-
-def auto_train_model() -> bool:
-    """
-    自动训练模型 - 如果模型不存在则进行训练
-    
-    Returns:
-        True 如果训练成功，False 否则
-    """
-    logger.info("\n" + "="*80)
-    logger.info("[2/4] 模型训练 - 自动训练模型")
-    logger.info("="*80)
-    
-    paths = get_paths()
-    data_path = str(paths['data'])
-    model_path = str(paths['models_dir'] / 'lstm_model.bin')
-    paths['models_dir'].mkdir(parents=True, exist_ok=True)
-    
-    try:
-        logger.info("启动模型训练...")
-        train_start = time.time()
-        
-        result = BusinessLogic.run_full_pipeline(
-            data_path=data_path,
-            model_path=model_path,
-            epochs=12,
-            batch_size=128
-        )
-        elapsed = time.time() - train_start
-        
-        if result['status'] == 'success':
-            logger.info("✓ 模型训练成功")
-            logger.info(f"  训练耗时：{elapsed/60:.2f} 分钟")
-            if 'training' in result:
-                logger.info(f"  训练结果：{result.get('training')}")
-            if 'prediction' in result:
-                logger.info(f"  预测统计：{result.get('prediction')}")
-            return True
+    @staticmethod
+    def _get_classification_label(value: float) -> str:
+        if value < THRESHOLD_LOW:
+            return "Low"
+        elif value > THRESHOLD_HIGH:
+            return "High"
         else:
-            logger.error(f"✗ 模型训练失败：{result.get('message')}")
-            logger.info(f"  失败前耗时：{elapsed/60:.2f} 分钟")
-            return False
-    
-    except Exception as e:
-        logger.error(f"✗ 训练异常：{str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
+            return "Medium"
 
-
-# ============================================================
-# 5. 完整检查
-# ============================================================
-
-def check_all_layers() -> Tuple[bool, bool, bool]:
-    """
-    完整的层级检查
-    
-    Returns:
-        (data_ok, model_ok, training_ok)
-    """
-    logger.info("\n" + "="*80)
-    logger.info("风芒可测 - 电力预测与交易优化系统")
-    logger.info("本地一键测试流程启动")
-    logger.info("="*80)
-    
-    # 数据层检测
-    data_ok = check_data_layer()
-    
-    if not data_ok:
-        logger.error("\n✗ 数据层检测失败，无法继续")
-        return False, False, False
-    
-    # 模型层检测
-    model_ok = check_model_layer()
-    
-    # 如果模型不存在，自动训练
-    training_ok = True
-    if not model_ok:
-        logger.info("\n开始自动训练模型...")
-        training_ok = auto_train_model()
+    @staticmethod
+    def calculate_classification_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+        """Convert continuous regression output to classification metrics."""
+        y_true_labels = [UnifiedEvaluator._get_classification_label(y) for y in y_true]
+        y_pred_labels = [UnifiedEvaluator._get_classification_label(y) for y in y_pred]
         
-        if not training_ok:
-            logger.error("\n✗ 模型训练失败")
-            return data_ok, model_ok, False
+        labels = ["Low", "Medium", "High"]
         
-        model_ok = check_model_layer()  # 重新检查
-    
-    return data_ok, model_ok, training_ok
+        return {
+            "Accuracy": accuracy_score(y_true_labels, y_pred_labels),
+            "Precision": precision_score(y_true_labels, y_pred_labels, average='weighted', zero_division=0),
+            "Recall": recall_score(y_true_labels, y_pred_labels, average='weighted', zero_division=0),
+            "F1": f1_score(y_true_labels, y_pred_labels, average='weighted', zero_division=0)
+        }
+
+    @staticmethod
+    def evaluate(y_true: np.ndarray, y_pred: np.ndarray, model_name: str, mode: str = "Test") -> Dict[str, float]:
+        """Comprehensive evaluation."""
+        # Regression Metrics
+        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        
+        # Classification Metrics
+        cls_metrics = UnifiedEvaluator.calculate_classification_metrics(y_true, y_pred)
+        
+        metrics = {
+            "Model": model_name,
+            "Mode": mode,
+            "RMSE": round(rmse, 4),
+            "MAE": round(mae, 4),
+            "R2": round(r2, 4),
+            **{k: round(v, 4) for k, v in cls_metrics.items()},
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        print(f"\n[{model_name}] Performance Report ({mode}):")
+        print(f"Regression  | RMSE: {rmse:.4f}, MAE: {mae:.4f}, R2: {r2:.4f}")
+        print(f"Classific.  | Acc: {metrics['Accuracy']:.2%}, F1: {metrics['F1']:.4f}")
+        return metrics
+
+    @staticmethod
+    def log_result(metrics: Dict[str, Any]):
+        """Append results to CSV."""
+        df = pd.DataFrame([metrics])
+        header = not RESULTS_FILE.exists()
+        df.to_csv(RESULTS_FILE, mode='a', header=header, index=False)
+        logger.info(f"Results logged to {RESULTS_FILE}")
+
+    @staticmethod
+    def plot_loss(history: Dict[str, List[float]], model_name: str):
+        """Plot training loss curve."""
+        if not history or 'train_loss' not in history or len(history.get('train_loss', [])) == 0:
+            logger.warning(f"No training history available for {model_name}")
+            return
+            
+        plt.figure(figsize=(10, 6))
+        
+        if 'train_loss' in history and history['train_loss']:
+            plt.plot(history['train_loss'], label='Train Loss')
+        if 'val_loss' in history and history['val_loss']:
+            plt.plot(history['val_loss'], label='Validation Loss')
+            
+        plt.title(f"{model_name} Training Loss Curve")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.grid(True)
+        
+        save_path = PLOT_DIR / f"loss_curve_{model_name.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plt.savefig(save_path)
+        plt.close()
+        logger.info(f"Loss curve saved to {save_path}")
+
+    @staticmethod
+    def plot_validation(y_true: np.ndarray, y_pred: np.ndarray, model_name: str):
+        """Plot Predicted vs True on Validation Set."""
+        plt.figure(figsize=(12, 6))
+        
+        # Limit to first 100 points for clarity if too large
+        limit = 100
+        indices = range(min(len(y_true), limit))
+        
+        plt.plot(indices, y_true[:limit], label='True Value', color='black', alpha=0.7)
+        plt.plot(indices, y_pred[:limit], label='Predicted', color='green', linestyle='--')
+        
+        # Draw Threshold Zones
+        plt.axhline(THRESHOLD_LOW, color='blue', linestyle=':', alpha=0.5, label='Low Carbon < 10')
+        plt.axhline(THRESHOLD_HIGH, color='red', linestyle=':', alpha=0.5, label='High Carbon > 15')
+        
+        plt.title(f"{model_name} Validation Preview (Next Day Prediction)")
+        plt.xlabel("Sample Index")
+        plt.ylabel("Carbon Footprint (kg)")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        save_path = PLOT_DIR / f"fit_compare_{model_name.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plt.savefig(save_path)
+        plt.close()
+        logger.info(f"Validation comparison saved to {save_path}")
 
 
-# ============================================================
-# 6. Streamlit 启动
-# ============================================================
+class ModelTrainer:
+    """Encapsulates training logic for all supported models."""
+    
+    def __init__(self, data_path: str):
+        self.data_path = data_path
+        self.val_ratio = 0.2
+        self.seed = 42
 
-def start_streamlit_app(port: int = 8501) -> bool:
-    """
-    启动 Streamlit 应用
+    def _split_data(self, X: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Hard 8:2 Split."""
+        split_idx = int(len(X) * (1 - self.val_ratio))
+        return X[:split_idx], X[split_idx:], y[:split_idx], y[split_idx:]
+
+    def train_lstm(self) -> Tuple[Any, Dict, np.ndarray, np.ndarray]:
+        logger.info("Initializing LSTM Training...")
+        # 1. Processing
+        X, y, scaler = process_data_for_lstm(self.data_path, window_size=3) # Assume 3-day window for next day
+        X_train, X_val, y_train, y_val = self._split_data(X, y)
+        
+        # 2. Config & Init (Input dim from data)
+        input_dim = X.shape[2]
+        model = LSTMForecastModel(input_dim=input_dim, hidden_dim=128, num_layers=2)
+        
+        # 3. Train
+        history = model.train(X_train, y_train, X_val, y_val, epochs=30, batch_size=32)
+        
+        # 4. Predict
+        preds_scaled = model.predict(X_val)
+        # Inverse Transform
+        if scaler:
+            preds = scaler.inverse_transform(preds_scaled.reshape(-1, 1)).flatten()
+            y_val_orig = scaler.inverse_transform(y_val.reshape(-1, 1)).flatten()
+        else:
+            preds = preds_scaled.flatten()
+            y_val_orig = y_val.flatten()
+            
+        return model, history, y_val_orig, preds
+
+    def train_gru(self) -> Tuple[Any, Dict, np.ndarray, np.ndarray]:
+        logger.info("Initializing GRU Training...")
+        # Reuse LSTM processing as GRU accepts same shape
+        X, y, scaler = process_data_for_lstm(self.data_path, window_size=3)
+        X_train, X_val, y_train, y_val = self._split_data(X, y)
+        
+        input_dim = X.shape[2]
+        model = GRUForecastModel(input_dim=input_dim, hidden_dim=64, num_layers=2)
+        
+        # GRU train wrapper usually returns dict history, accepts standard X, y if we assume fix to GRU wrapper or direct call
+        # Assuming GRU class method train accepts standard numpy arrays
+        history = model.train(X_train, y_train, X_val, y_val, epochs=30)
+        
+        preds_scaled = model.predict(X_val)
+        if scaler:
+            preds = scaler.inverse_transform(preds_scaled.reshape(-1, 1)).flatten()
+            y_val_orig = scaler.inverse_transform(y_val.reshape(-1, 1)).flatten()
+        else:
+            preds = preds_scaled.flatten()
+            y_val_orig = y_val.flatten()
+            
+        return model, history, y_val_orig, preds
+
+    def train_xgboost(self) -> Tuple[Any, Dict, np.ndarray, np.ndarray]:
+        logger.info("Initializing XGBoost Training...")
+        X, y = process_data_for_xgboost(self.data_path)
+        # Handle potential dataframe output
+        if hasattr(X, 'values'): X = X.values
+        if hasattr(y, 'values'): y = y.values
+        
+        X_train, X_val, y_train, y_val = self._split_data(X, y)
+        
+        model = XGBoostForecastModel(n_estimators=100, learning_rate=0.1)
+        history_metrics = model.train(X_train, y_train, X_val, y_val) 
+        
+        preds = model.predict(X_val)
+        
+        return model, {}, y_val, preds
+
+    def train_moirai(self) -> Tuple[Any, Dict, np.ndarray, np.ndarray]:
+        logger.info("Initializing Moirai Training...")
+        # Moirai uses dataframe directly usually
+        df = process_data_for_moirai(self.data_path)
+        
+        # Split Dataframe
+        split_idx = int(len(df) * (1 - self.val_ratio))
+        df_train = df.iloc[:split_idx]
+        df_val = df.iloc[split_idx:]
+        
+        model = MoiraiZeroShotModel()
+        # Train creates internal history or loaded model
+        model.train(df_train, None, df_val, df_val['carbon_footprint_kg'].values)
+        
+        preds = model.predict(df_val)
+        y_val = df_val['carbon_footprint_kg'].values
+        
+        return model, {}, y_val, preds
+
+
+def get_interactive_config() -> Tuple[bool, bool, List[str]]:
+    """Get configuration via interactive prompts."""
+    print("="*60)
+    print("      EcoLife Interactive Internal Testing Platform      ")
+    print("="*60)
     
-    Args:
-        port: Streamlit 端口（默认 8501）
-    
-    Returns:
-        True 如果启动成功
-    """
-    logger.info("\n" + "="*80)
-    logger.info("[4/4] 前端启动 - 启动 Streamlit 应用")
-    logger.info("="*80)
-    
-    paths = get_paths()
-    app_path = paths['app']
-    
-    if not app_path.exists():
-        logger.error(f"✗ 应用文件不存在：{app_path}")
-        return False
-    
+    # 1. Interactive Selection
+    print("\n[Q1] 选择任务类型:")
+    print("   [1] 模型训练与调优 (Train)")
+    print("   [2] 推理模式 (跳过训练，加载现有模型)")
     try:
-        # 启动 Streamlit
-        cmd = [
-            sys.executable, '-m', 'streamlit', 'run', str(app_path),
-            '--server.port', str(port),
-            '--server.headless', 'false'
-        ]
-        
-        logger.info(f"执行命令：{' '.join(cmd)}")
-        logger.info(f"访问地址：http://localhost:{port}")
-        logger.info("按 Ctrl+C 停止服务")
-        
-        # 使用 subprocess 运行（阻塞式）
-        process = subprocess.run(cmd, cwd=str(project_root))
-        
-        return process.returncode == 0
+        task_choice = input(">> 请选择 (1/2): ").strip()
+    except EOFError:
+        print("\n检测到非交互式环境，使用默认配置：训练模式")
+        task_choice = '1'
     
-    except KeyboardInterrupt:
-        logger.info("应用已停止")
-        return True
-    except Exception as e:
-        logger.error(f"✗ 启动失败：{str(e)}")
-        return False
+    is_training = (task_choice == '1')
+    
+    # 2. Stacking Choice
+    print("\n[Q2] 是否启用 Stacking 融合？")
+    try:
+        stacking_choice = input(">> 启用 (Y/N): ").strip().upper()
+    except EOFError:
+        print("\n检测到非交互式环境，使用默认配置：不启用 Stacking")
+        stacking_choice = 'N'
+    is_stacking = (stacking_choice == 'Y')
+    
+    # 3. Model Selection
+    selected_models = []
+    
+    if not is_stacking:
+        print("\n[Q3] 选择要测试的单个模型:")
+        print("   [1] LSTM")
+        print("   [2] GRU")
+        print("   [3] XGBoost")
+        print("   [4] Moirai")
+        try:
+            choice = input(">> 选择 (1-4): ").strip()
+        except EOFError:
+            print("\n检测到非交互式环境，使用默认模型：XGBoost")
+            choice = '3'
+        if choice in MODEL_MAP:
+            selected_models = [MODEL_MAP[choice]]
+    else:
+        print("\n[Q3] 输入 Stacking 融合的模型组合 (逗号分隔):")
+        print("   示例：1,3 或 1,2,3,4")
+        try:
+            choices = input(">> 模型: ").strip().split(',')
+        except EOFError:
+            print("\n检测到非交互式环境，使用默认组合：LSTM+XGBoost")
+            choices = ['1', '3']
+        for c in choices:
+            c = c.strip()
+            if c in MODEL_MAP:
+                selected_models.append(MODEL_MAP[c])
+    
+    return is_training, is_stacking, selected_models
 
 
-# ============================================================
-# 7. 命令行接口
-# ============================================================
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description='EcoLife Internal Testing Platform',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python main.py                          # 交互模式
+  python main.py --train                  # 训练模式，默认 XGBoost
+  python main.py --train --stack          # 启用 Stacking 融合
+  python main.py --train --models 1,3     # 训练 LSTM 和 XGBoost
+  python main.py --train --models 1,2,3,4 --stack  # 全模型 Stacking
+        """
+    )
+    
+    parser.add_argument('--train', action='store_true', 
+                        help='训练模式 (默认：推理模式)')
+    parser.add_argument('--stack', action='store_true',
+                        help='启用 Stacking 融合')
+    parser.add_argument('--models', type=str, default='3',
+                        help='模型选择 (1=LSTM, 2=GRU, 3=XGBoost, 4=Moirai)，逗号分隔，例如：1,3')
+    parser.add_argument('--interactive', action='store_true',
+                        help='强制使用交互模式')
+    parser.add_argument('--data', type=str, 
+                        default='data/personal_carbon_footprint_behavior.csv',
+                        help='数据文件路径')
+    
+    return parser.parse_args()
+
 
 def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(
-        description='风芒可测 - 电力预测与交易优化系统 本地测试脚本',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
-示例：
-    python main.py                  # 启动完整系统
-    python main.py --train-only    # 仅训练模型
-    python main.py --data-only     # 仅检查数据
-    python main.py --port 9000     # 在端口 9000 启动应用
-        '''
-    )
+    # Parse arguments
+    args = parse_args()
     
-    parser.add_argument(
-        '--train-only',
-        action='store_true',
-        help='仅训练模型，不启动应用'
-    )
+    # Determine if interactive mode
+    # Interactive if: --interactive flag is set, or no arguments provided, or stdin is a TTY
+    is_interactive = args.interactive or (len(sys.argv) == 1) or (hasattr(sys.stdin, 'isatty') and sys.stdin.isatty())
     
-    parser.add_argument(
-        '--data-only',
-        action='store_true',
-        help='仅检查数据，不训练和启动'
-    )
-    
-    parser.add_argument(
-        '--port',
-        type=int,
-        default=8501,
-        help='Streamlit 应用端口（默认：8501）'
-    )
-    
-    parser.add_argument(
-        '--skip-train',
-        action='store_true',
-        help='跳过模型训练，直接启动应用（模型必须已存在）'
-    )
-    
-    args = parser.parse_args()
-    
-    # ==================== 执行检查 ====================
-    
-    data_ok, model_ok, training_ok = check_all_layers()
-    
-    if not data_ok:
-        logger.error("\n✗ 数据检查失败，请检查数据文件")
-        sys.exit(1)
-    
-    # ==================== 仅数据检查 ====================
-    
-    if args.data_only:
-        logger.info("\n✓ 数据层检查完成")
-        sys.exit(0)
-    
-    # ==================== 仅训练模型 ====================
-    
-    if args.train_only:
-        if not training_ok:
-            logger.error("\n✗ 模型训练失败")
-            sys.exit(1)
-        
-        logger.info("\n✓ 模型训练完成")
-        sys.exit(0)
-    
-    # ==================== 检查模型是否存在（如果跳过训练） ====================
-    
-    if args.skip_train and not model_ok:
-        logger.error("\n✗ 跳过训练但模型不存在")
-        sys.exit(1)
-    
-    # ==================== 启动应用 ====================
-    
-    logger.info("\n" + "="*80)
-    logger.info("✓ 所有检查通过，准备启动应用")
-    logger.info("="*80)
-    
-    time.sleep(1)
-    
-    # 启动 Streamlit
-    success = start_streamlit_app(args.port)
-    
-    if success:
-        sys.exit(0)
+    if is_interactive and len(sys.argv) == 1:
+        # Pure interactive mode
+        is_training, is_stacking, selected_models = get_interactive_config()
     else:
-        sys.exit(1)
+        # Command line mode
+        is_training = args.train
+        is_stacking = args.stack
+        
+        # Parse model selection
+        model_choices = args.models.split(',')
+        selected_models = []
+        for c in model_choices:
+            c = c.strip()
+            if c in MODEL_MAP:
+                selected_models.append(MODEL_MAP[c])
+        
+        if not selected_models:
+            logger.error("No valid models specified. Using default: XGBoost")
+            selected_models = ['XGBoost']
+        
+        print("="*60)
+        print("      EcoLife Internal Testing Platform      ")
+        print("="*60)
+        print(f"\n配置：任务={'训练' if is_training else '推理'}, 模型={selected_models}, Stacking={is_stacking}")
+    
+    # Validate data path
+    data_path = args.data
+    if not Path(data_path).exists():
+        logger.error(f"Data file not found: {data_path}")
+        return
+
+    if not selected_models:
+        logger.error("No valid models selected.")
+        return
+
+    print(f"\n开始执行：任务={'训练' if is_training else '推理'}, 模型={selected_models}, Stacking={is_stacking}")
+    
+    trainer = ModelTrainer(data_path)
+    
+    # Storage for Stacking
+    val_predictions = {} 
+    val_targets = None
+    
+    # Process Execution
+    for model_name in selected_models:
+        print(f"\n... 处理 {model_name} ...")
+        
+        y_val_true = None
+        y_val_pred = None
+        history = {}
+        
+        try:
+            if model_name == 'LSTM':
+                _, history, y_val_true, y_val_pred = trainer.train_lstm()
+            elif model_name == 'GRU':
+                _, history, y_val_true, y_val_pred = trainer.train_gru()
+            elif model_name == 'XGBoost':
+                _, _, y_val_true, y_val_pred = trainer.train_xgboost()
+            elif model_name == 'Moirai':
+                _, _, y_val_true, y_val_pred = trainer.train_moirai()
+                
+            # Store for stacking
+            if len(y_val_pred) > 0:
+                val_predictions[model_name] = y_val_pred
+                if val_targets is None:
+                    val_targets = y_val_true # Assume aligned
+                else:
+                    # Align lengths if mismatched (simple truncation for safety)
+                    min_len = min(len(val_targets), len(y_val_true))
+                    val_targets = val_targets[:min_len]
+                    val_predictions[model_name] = val_predictions[model_name][:min_len]
+                    
+            # Evaluation & Visualization
+            metrics = UnifiedEvaluator.evaluate(y_val_true, y_val_pred, model_name)
+            UnifiedEvaluator.log_result(metrics)
+            UnifiedEvaluator.plot_loss(history, model_name)
+            UnifiedEvaluator.plot_validation(y_val_true, y_val_pred, model_name)
+            
+        except Exception as e:
+            logger.error(f"Failed to process {model_name}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # Stacking Logic
+    if is_stacking and len(val_predictions) > 1:
+        print("\n... 执行 Stacking 融合 ...")
+        
+        # Align all predictions to shortest length
+        if val_targets is None:
+             logger.error("No valid predictions generated for stacking.")
+             return
+
+        min_len = min([len(v) for v in val_predictions.values()] + [len(val_targets)])
+        
+        X_stack = []
+        feature_names = []
+        for name, preds in val_predictions.items():
+            X_stack.append(preds[:min_len])
+            feature_names.append(name)
+            
+        X_stack = np.column_stack(X_stack)
+        y_stack = val_targets[:min_len]
+        
+        # Simple Blending (Average)
+        avg_preds = np.mean(X_stack, axis=1)
+        UnifiedEvaluator.evaluate(y_stack, avg_preds, "Stacking_Mean_Blend")
+        
+        # Meta Model (XGBoost)
+        logger.info("Training Meta-Model on Validation Predictions (Fusion Layer)...")
+        meta_sub_model = XGBRegressor(n_estimators=50, max_depth=3)
+        meta_sub_model.fit(X_stack, y_stack)
+        meta_preds = meta_sub_model.predict(X_stack)
+        
+        # Evaluate
+        metrics = UnifiedEvaluator.evaluate(y_stack, meta_preds, "Stacking_Meta_XGB")
+        UnifiedEvaluator.log_result(metrics)
+        UnifiedEvaluator.plot_validation(y_stack, meta_preds, "Stacking_Fusion")
+        
+        # Save Meta Model
+        joblib.dump(meta_sub_model, CHECKPOINT_DIR / "stacking_meta_model.joblib")
+        print(f"Meta-Model 已保存到 {CHECKPOINT_DIR / 'stacking_meta_model.joblib'}")
+    
+    print("\n" + "="*60)
+    print("执行完成!")
+    print("="*60)
 
 
 if __name__ == "__main__":

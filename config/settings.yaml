@@ -1,0 +1,94 @@
+project:
+  name: "风芒可测"
+
+paths:
+  data_path: "data/data.csv"
+  model_dir: "models"
+  checkpoints_dir: "models/checkpoints"
+  logs_dir: "logs"
+  plots_dir: "logs/plots"
+  metrics_log: "logs/metrics/latest_metrics.json"
+
+data:
+  lookback: 48
+  split:
+    train_ratio: 0.7
+    val_ratio: 0.2
+
+training:
+  epochs: 50
+  batch_size: 64
+  learning_rate: 0.001
+
+models:
+  lstm:
+    hidden_dim: 96
+    num_layers: 2
+    learning_rate: 0.0005
+  gru:
+    hidden_dim: 96
+    num_layers: 2
+    learning_rate: 0.0005
+  xgboost:
+    n_estimators: 400
+    learning_rate: 0.05
+    max_depth: 6
+    subsample: 0.9
+    colsample_bytree: 0.9
+  moirai:
+    lightweight_mode: true
+
+horizon:
+  day:
+    label: "下一天 (96x15min)"
+    points: 96
+    source_points: 96
+    aggregation: "none"
+    preferred_models: ["lstm", "gru", "xgboost", "moirai"]
+    weights:
+      lstm: 0.40
+      gru: 0.35
+      xgboost: 0.15
+      moirai: 0.10
+  week:
+    label: "一周 (168x1h)"
+    points: 168
+    source_points: 672
+    aggregation: "hourly"
+    preferred_models: ["xgboost", "lstm", "gru", "moirai"]
+    weights:
+      xgboost: 0.40
+      lstm: 0.25
+      gru: 0.20
+      moirai: 0.15
+  month:
+    label: "一月 (30x1d)"
+    points: 30
+    source_points: 2880
+    aggregation: "daily"
+    preferred_models: ["moirai", "xgboost", "lstm", "gru"]
+    weights:
+      moirai: 0.50
+      xgboost: 0.25
+      lstm: 0.15
+      gru: 0.10
+
+business:
+  trade:
+    peak_price: 1.2
+    flat_price: 0.8
+    valley_price: 0.4
+    sell_signal_threshold_pct: 3.0
+    buy_signal_threshold_pct: -2.0
+
+frontend:
+  page_title: "竞赛级电力预测看板"
+  app_mode: "inference_only"
+  default_horizon: "day"
+
+database:
+  host: "localhost"
+  port: 3306
+  user: "root"
+  password: ""
+  database: "power"

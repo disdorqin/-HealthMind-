@@ -2,8 +2,9 @@
 
 from .base_model import BaseForecastModel
 from .gru_model import GRUForecastModel
+from .model_loader import ModelLoader
 from .lstm_model import LSTMForecastModel
-from .model_service import ModelService
+# from .model_service import ModelService
 from .moirai_model import MoiraiZeroShotModel
 from .stacking_manager import StackingManager
 from .xgboost_model import XGBoostForecastModel
@@ -15,5 +16,6 @@ __all__ = [
     "XGBoostForecastModel",
     "MoiraiZeroShotModel",
     "StackingManager",
+    "ModelLoader",
     "ModelService",
 ]

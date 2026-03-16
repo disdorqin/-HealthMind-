@@ -8,15 +8,15 @@ import numpy as np
 
 from src.core.utils.logger import logger
 from src.logic.trade import TimeOfUsePrice, TradeOptimizer
-from src.models.model_service import ModelService
+from src.services import ForecastService
 
 
 class BusinessLogic:
     """Compatibility facade used by app.py and main.py."""
 
     @staticmethod
-    def _build_service(data_path: str = "data/data.csv") -> ModelService:
-        return ModelService(data_path=data_path, model_dir="models", lookback=24)
+    def _build_service(data_path: str = "data/data.csv") -> ForecastService:
+        return ForecastService(data_path=data_path, model_dir="models", lookback=24)
 
     @staticmethod
     def run_full_pipeline(
@@ -34,9 +34,9 @@ class BusinessLogic:
                 epochs=epochs,
                 batch_size=batch_size,
             )
-            predict_result = service.predict(selected_models=selected_models, use_stacking=True, horizon=96)
+            predict_result = service.predict_by_horizon("day")
 
-            stacking_values = predict_result.get("predictions", {}).get("stacking", [])
+            stacking_values = predict_result.get("predictions_ensemble", [])
             values = np.asarray(stacking_values, dtype=np.float32)
             return {
                 "status": "success",
@@ -81,9 +81,8 @@ class BusinessLogic:
         logger.info("Start prediction")
         try:
             service = BusinessLogic._build_service(data_path)
-            model_list = selected_models or ["lstm", "gru", "xgboost", "moirai"]
-            result = service.predict(model_list, use_stacking=True, horizon=96)
-            stacked = np.asarray(result["predictions"].get("stacking", []), dtype=np.float32)
+            result = service.predict_by_horizon("day")
+            stacked = np.asarray(result.get("predictions_ensemble", []), dtype=np.float32)
             return {
                 "status": "success",
                 "message": "Prediction completed",
@@ -92,7 +91,7 @@ class BusinessLogic:
                     "min": float(stacked.min()) if stacked.size else 0.0,
                     "max": float(stacked.max()) if stacked.size else 0.0,
                     "mean": float(stacked.mean()) if stacked.size else 0.0,
-                    "predictions": result["predictions"],
+                    "predictions": {**result.get("predictions", {}), "stacking": result.get("predictions_ensemble", [])},
                     "ground_truth": result.get("ground_truth", []),
                 },
             }
