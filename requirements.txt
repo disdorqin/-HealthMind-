@@ -1,10 +1,30 @@
-numpy>=1.24
-pandas>=2.0
-scikit-learn
-joblib
-matplotlib
-torch
-pyyaml
-streamlit
-pyecharts
-streamlit-echarts
+# EcoLife - 个人碳足迹预测与管理平台
+# 依赖安装文件
+
+# ===== 核心科学计算库 =====
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# ===== 机器学习与深度学习 =====
+torch>=2.0.0
+torchvision>=0.15.0
+scikit-learn>=1.3.0
+xgboost>=1.7.0
+joblib>=1.3.0
+
+# ===== 数据处理与可视化 =====
+matplotlib>=3.7.0
+pyecharts>=2.0.0
+streamlit-echarts>=0.6.0
+
+# ===== Web 框架 =====
+streamlit>=1.28.0
+
+# ===== 配置与工具 =====
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# ===== 数据库（可选） =====
+sqlalchemy>=2.0.0
+pymysql>=1.1.0

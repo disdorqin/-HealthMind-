@@ -1,4 +1,4 @@
-﻿# 风芒可测：个人碳足迹预测与管理平台
+﻿# EcoLife：个人碳足迹预测与管理平台
 
 <div align="center">
 
@@ -30,7 +30,7 @@
 
 ## 🌟 项目简介
 
-**风芒可测（EcoLife）** 是一个面向个人碳足迹管理的智能预测与决策支持平台。项目结合深度学习、机器学习和时序基础模型，实现了对个人碳排放行为的高精度预测，并提供个性化的减碳建议和交易决策支持。
+**EcoLife** 是一个面向个人碳足迹管理的智能预测与决策支持平台。项目结合深度学习、机器学习和时序基础模型，实现了对个人碳排放行为的高精度预测，并提供个性化的减碳建议和交易决策支持。
 
 ### 项目背景
 
@@ -120,7 +120,7 @@
 | **深度学习** | PyTorch (LSTM, GRU) |
 | **机器学习** | XGBoost, Scikit-learn |
 | **时序模型** | Moirai (Uni2TS) |
-| **数据处理** | NumPy, Pandas |
+| **数据处理** | NumPy, Pandas, SciPy |
 | **可视化** | Matplotlib, Pyecharts |
 | **数据存储** | SQLite, MySQL (可选) |
 
@@ -139,8 +139,8 @@
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/disdorqin/fengmang.git
-cd fengmang
+git clone https://github.com/disdorqin/EcoLife.git
+cd EcoLife
 ```
 
 #### 2. 创建虚拟环境
@@ -224,7 +224,7 @@ python main.py --help
 ## 📁 项目结构
 
 ```
-fengmang/
+EcoLife/
 ├── app.py                          # Streamlit 主入口
 ├── main.py                         # 命令行交互入口
 ├── requirements.txt                # Python 依赖
@@ -435,9 +435,9 @@ python main.py --train --stack --models 1,2,3,4
 
 ## 👥 开发团队
 
-**风芒可测团队**
+**EcoLife 团队**
 
-- 项目地址：https://github.com/disdorqin/fengmang
+- 项目地址：https://github.com/disdorqin/EcoLife
 - 参赛组别：计算机设计大赛
 
 ---
@@ -456,7 +456,7 @@ python main.py --train --stack --models 1,2,3,4
 
 <div align="center">
 
-**🌿 风芒可测 - 让每一次呼吸都更清新**
+**🌿 EcoLife - 让每一次呼吸都更清新**
 
 Made with ❤️ by EcoLife Team
 
