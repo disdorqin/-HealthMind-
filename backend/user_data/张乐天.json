@@ -1,0 +1,19 @@
+{
+  "user_id": "张乐天",
+  "username": "张乐天",
+  "created_at": "2026-03-18T11:40:52",
+  "total_credits": 0,
+  "carbon_records": [],
+  "credit_history": [],
+  "profile": {
+    "age": 24,
+    "gender": "男",
+    "email": null,
+    "address": null
+  },
+  "settings": {
+    "weekly_budget": 350,
+    "diet_type": "omnivore",
+    "notifications_enabled": true
+  }
+}

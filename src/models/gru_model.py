@@ -18,7 +18,7 @@ from .base_model import BaseForecastModel
 
 
 class _GRURegressor(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int = 64, num_layers: int = 2):
+    def __init__(self, input_dim: int , hidden_dim: int = 64, num_layers: int = 2):
         super().__init__()
         self.gru = nn.GRU(
             input_size=input_dim,
@@ -36,8 +36,8 @@ class _GRURegressor(nn.Module):
 class GRUForecastModel(BaseForecastModel):
     def __init__(
         self,
-        input_dim: int,
-        hidden_dim: int = 64,
+        input_dim: int ,
+        hidden_dim: int = 32,
         num_layers: int = 2,
         learning_rate: float = 1e-3,
     ):
@@ -49,6 +49,7 @@ class GRUForecastModel(BaseForecastModel):
         self.model = _GRURegressor(input_dim, hidden_dim, num_layers)
         # Force CPU to avoid potential CUDA initialization hangs in diagnosis mode
         self.device = torch.device("cpu")
+        #适合无GPU环境，避免CUDA初始化问题
         self.model.to(self.device)
         self.scaler = MinMaxScaler()
 
