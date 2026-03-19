@@ -1,73 +1,81 @@
-﻿# EcoLife：个人碳足迹预测与管理平台
+﻿# ❤️ HealthMind 健康风险管理平台
 
-<div align="center">
+> 基于 AI 的心血管疾病风险预测与健康管理平台
 
-🌿 **EcoLife - 您的智能碳足迹管理助手**
-
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit](https://img.shields.io/badge/streamlit-latest-red.svg)](https://streamlit.io/)
-[![PyTorch](https://img.shields.io/badge/pytorch-latest-orange.svg)](https://pytorch.org/)
-
-**计算机设计大赛参赛作品 | 多模型融合预测 | 智能碳管理**
-
-</div>
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-FF4B4B.svg)](https://streamlit.io/)
+[![PyTorch](https://img.shields.io/badge/pytorch-2.0%2B-EE4C2C.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## 📖 目录
+## 📋 目录
 
 - [项目简介](#-项目简介)
 - [核心功能](#-核心功能)
 - [技术架构](#-技术架构)
 - [快速开始](#-快速开始)
 - [项目结构](#-项目结构)
+- [API 文档](#-api-文档)
 - [模型说明](#-模型说明)
-- [使用指南](#-使用指南)
-- [性能指标](#-性能指标)
+- [配置说明](#-配置说明)
+- [常见问题](#-常见问题)
 - [开发团队](#-开发团队)
 
 ---
 
 ## 🌟 项目简介
 
-**EcoLife** 是一个面向个人碳足迹管理的智能预测与决策支持平台。项目结合深度学习、机器学习和时序基础模型，实现了对个人碳排放行为的高精度预测，并提供个性化的减碳建议和交易决策支持。
+HealthMind 是一个集成先进机器学习技术的健康管理平台，专注于心血管疾病风险预测与干预建议。平台采用 Stacking 集成学习架构，融合 LSTM/GRU 时序模型、XGBoost 特征模型和 Moirai 时序基础模型，通过 SHAP 可解释性分析为用户提供透明、可信的健康风险评估。
 
-### 项目背景
+### 核心优势
 
-在全球碳中和的大背景下，个人碳足迹管理成为实现减排目标的重要环节。本项目通过构建多模型融合的预测系统，帮助用户：
-- 📊 **了解** 自身碳排放模式
-- 🔮 **预测** 未来碳排放趋势
-- 💡 **获取** 个性化减碳建议
-- 🏆 **追踪** 减碳成果与荣誉
+- **精准预测**：Stacking 集成学习，准确率 > 70%
+- **可解释性**：SHAP 归因分析，明确风险因素贡献度
+- **个性化干预**：基于风险因素的定制化健康建议
+- **激励机制**：健康积分系统，促进用户持续参与
 
 ---
 
 ## ✨ 核心功能
 
-### 1. 多模型融合预测
-集成四种先进模型进行碳排放预测：
-| 模型 | 类型 | 特点 | 适用场景 |
-|------|------|------|----------|
-| **LSTM** | 深度学习 | 双向 LSTM，捕捉时序依赖 | 短期波动预测 |
-| **GRU** | 深度学习 | 门控循环单元，训练高效 | 短期波动预测 |
-| **XGBoost** | 机器学习 | 梯度提升树，特征重要性 | 特征驱动预测 |
-| **Moirai** | 时序基础模型 | 零样本学习，通用性强 | 长期趋势预测 |
+### 1. 多维度风险趋势 📈
 
-### 2. Stacking 融合机制
-- **简单平均融合**：等权重集成各模型预测
-- **元学习融合**：使用 XGBoost 作为元模型，学习最优权重
-- **自适应选择**：根据预测时间尺度自动调整模型权重
+- **24 小时风险趋势图**：实时监测心血管、血压、血糖风险变化
+- **周风险预测**：未来 7 天健康风险趋势预测
+- **风险仪表盘**：三维度实时风险等级指示（低/中/高）
 
-### 3. 智能碳管理
-- 📈 **碳预算设置**：设定月度碳排放目标
-- 🎯 **实时追踪**：监控当前排放与预算进度
-- 💰 **碳积分系统**：基于预测准确度奖励减碳行为
-- 🏅 **荣誉体系**：等级晋升与成就徽章
+### 2. 目标管理 🎯
 
-### 4. 个性化减碳建议
-- 🥗 **饮食建议**：低碳食谱推荐，无肉日提醒
-- 🚌 **出行建议**：公共交通 vs 私家车排放对比
-- 🏠 **用能建议**：家庭能源消耗优化方案
+| 目标类型 | 默认目标 | 进度追踪 |
+|---------|---------|---------|
+| 步数目标 | 10,000 步/日 | ✅ 周趋势图 |
+| 睡眠目标 | 8 小时/日 | ✅ 周趋势图 |
+| 蔬菜摄入 | 7 份/日 | ✅ 进度条 |
+| 饮水量 | 2500ml/日 | ✅ 进度条 |
+| 冥想时间 | 60 分钟/日 | ✅ 进度条 |
+
+### 3. SHAP 风险归因 🔍
+
+- **瀑布图可视化**：红色柱表示增加风险因素，绿色柱表示保护因素
+- **风险因素详情表**：当前值 vs 正常范围对比
+- **风险贡献分布饼图**：各因素占比一目了然
+
+### 4. 健康建议 💡
+
+- **优先级排序**：按风险贡献度自动排序
+- **预期效果量化**：每条建议标注预期风险降低比例
+- **交互式清单**：✅ 标记完成 / 📝 记录进展
+
+### 5. 激励系统 🏆
+
+- **积分规则**：
+  - 每日预测：+10 分
+  - 完成建议：+20 分
+  - 连续 7 天打卡：+50 分
+  - 风险改善：+30 分
+- **等级体系**：青铜 → 白银 → 黄金 → 铂金
+- **排行榜**：社区互动，健康达人 PK
 
 ---
 
@@ -75,54 +83,33 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Streamlit 前端                          │
-│  ┌───────────┬───────────┬───────────┬───────────┐         │
-│  │ 智能预测  │ 减碳计划  │ 碳积分    │ 全局指标  │         │
-│  └───────────┴───────────┴───────────┴───────────┘         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      服务层 (Services)                       │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │PredictionSvc │ │ TrainingSvc  │ │  TradeSvc    │        │
-│  └──────────────┘ └──────────────┘ └──────────────┘        │
-│  ┌──────────────┐ ┌──────────────┐                         │
-│  │ForecasterMgr │ │ CarbonEngine │                         │
-│  └──────────────┘ └──────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      模型层 (Models)                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │  LSTM    │ │   GRU    │ │XGBoost   │ │ Moirai   │       │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
-│                    ┌──────────────┐                         │
-│                    │Stacking Meta │                         │
-│                    └──────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      数据层 (Data)                           │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐        │
-│  │LSTM Processing│ │XGB Processing│ │Moirai Proc  │        │
-│  └──────────────┘ └──────────────┘ └──────────────┘        │
+│                     HealthMind 架构                          │
+├─────────────────────────────────────────────────────────────┤
+│  前端层 (Streamlit)                                          │
+│  ├─ 风险趋势可视化 (Pyecharts)                               │
+│  ├─ 目标管理进度条                                           │
+│  ├─ SHAP 归因瀑布图                                          │
+│  └─ 健康积分排行榜                                           │
+├─────────────────────────────────────────────────────────────┤
+│  服务层 (src/services/service_layer.py)                      │
+│  ├─ SHAPExplainer: 风险归因分析                              │
+│  ├─ DecisionEngine: 干预建议生成                             │
+│  └─ HealthPointsSystem: 积分激励系统                         │
+├─────────────────────────────────────────────────────────────┤
+│  模型层 (src/models.py)                                      │
+│  ├─ StackingEnsemble: 集成学习框架                           │
+│  │  ├─ LSTMBaseLearner: 双层双向 LSTM                        │
+│  │  ├─ GRUBaseLearner: 双层双向 GRU                          │
+│  │  ├─ XGBoostBaseLearner: 非线性特征交互                    │
+│  │  └─ MoiraiMockLearner: 冷启动预测 (预留 API)               │
+│  └─ MetaLearner: 场景感知融合 (逻辑回归)                      │
+├─────────────────────────────────────────────────────────────┤
+│  数据处理层 (src/data_processing.py)                         │
+│  ├─ 数据加载：cardio_train.csv (分号分隔)                     │
+│  ├─ 特征转换：年龄→岁数、BMI 计算、血压差提取                  │
+│  └─ 时序模拟：滑动窗口生成 7 天序列                           │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### 技术栈
-
-| 类别 | 技术 |
-|------|------|
-| **前端框架** | Streamlit, Pyecharts, Streamlit-Echarts |
-| **深度学习** | PyTorch (LSTM, GRU) |
-| **机器学习** | XGBoost, Scikit-learn |
-| **时序模型** | Moirai (Uni2TS) |
-| **数据处理** | NumPy, Pandas, SciPy |
-| **可视化** | Matplotlib, Pyecharts |
-| **数据存储** | SQLite, MySQL (可选) |
 
 ---
 
@@ -130,9 +117,9 @@
 
 ### 环境要求
 
-- Python 3.10+
-- 操作系统：Windows / Linux / macOS
-- 推荐显存：4GB+ (用于 GPU 加速)
+- Python 3.9 - 3.11
+- 内存 >= 4GB
+- 磁盘空间 >= 2GB
 
 ### 安装步骤
 
@@ -140,324 +127,272 @@
 
 ```bash
 git clone https://github.com/disdorqin/EcoLife.git
-cd EcoLife
+cd 计算机设计大赛
 ```
 
-#### 2. 创建虚拟环境
+#### 2. 创建虚拟环境（推荐）
 
-**Windows PowerShell:**
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-**Windows CMD:**
-```cmd
-python -m venv .venv
-.venv\Scripts\activate.bat
-```
-
-**Linux / macOS:**
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
 ```
 
 #### 3. 安装依赖
 
 ```bash
-python -m pip install --upgrade pip
+# 基础安装（推荐）
 pip install -r requirements.txt
+
+# 国内用户加速
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-#### 4. 配置环境变量
+#### 4. 启动应用
 
 ```bash
-# 复制环境变量模板
-cp .env.template .env
-
-# 编辑 .env 文件，配置数据库等参数（如使用 MySQL）
-```
-
-### 运行方式
-
-#### 方式一：启动前端界面（推荐）
-
-```bash
+# 启动 HealthMind 前端
 streamlit run app.py
+
+# 浏览器访问
+# http://localhost:8501
 ```
-
-然后在浏览器中访问 `http://localhost:8501`
-
-#### 方式二：命令行交互模式
-
-```bash
-python main.py
-```
-
-#### 方式三：命令行参数模式
-
-```bash
-# 训练模式（默认 XGBoost）
-python main.py --train
-
-# 启用 Stacking 融合
-python main.py --train --stack
-
-# 指定模型组合
-python main.py --train --models 1,3     # LSTM + XGBoost
-python main.py --train --models 1,2,3,4 --stack  # 全模型融合
-
-# 查看帮助
-python main.py --help
-```
-
-**参数说明：**
-- `--train`: 训练模式
-- `--stack`: 启用 Stacking 融合
-- `--models`: 模型选择 (1=LSTM, 2=GRU, 3=XGBoost, 4=Moirai)
-- `--interactive`: 强制交互模式
-- `--data`: 数据文件路径
 
 ---
 
 ## 📁 项目结构
 
 ```
-EcoLife/
-├── app.py                          # Streamlit 主入口
-├── main.py                         # 命令行交互入口
+计算机设计大赛/
+├── app.py                          # Streamlit 前端应用
 ├── requirements.txt                # Python 依赖
-├── packages.txt                    # 系统依赖
-├── README.md                       # 项目说明
-├── .env.template                   # 环境变量模板
-│
-├── config/                         # 配置文件
-│   ├── __init__.py
-│   ├── settings.py                 # 设置加载器
-│   └── settings.yaml               # YAML 配置
-│
-├── src/                            # 源代码
-│   ├── core/                       # 核心工具
-│   │   ├── config/                 # 配置管理
-│   │   ├── exceptions/             # 异常定义
-│   │   └── utils/                  # 工具函数
-│   │       ├── logger.py           # 日志系统
-│   │       └── training_progress.py # 训练进度
-│   │
-│   ├── data/                       # 数据处理
-│   │   ├── lstm_processing.py      # LSTM 数据预处理
-│   │   ├── xgboost_processing.py   # XGBoost 数据预处理
-│   │   ├── moirai_processing.py    # Moirai 数据预处理
-│   │   └── mysql_client.py         # MySQL 客户端
-│   │
-│   ├── model_layer/                # 模型封装层
-│   │   ├── base_model.py           # 基类定义
-│   │   ├── lstm_model.py           # LSTM 封装
-│   │   ├── xgboost_model.py        # XGBoost 封装
-│   │   ├── model_trainer.py        # 多模型训练器
-│   │   ├── model_evaluator.py      # 模型评估器
-│   │   └── metrics_manager.py      # 指标管理
-│   │
-│   ├── models/                     # 模型定义
-│   │   ├── lstm_model.py           # LSTM 模型
-│   │   ├── gru_model.py            # GRU 模型
-│   │   ├── xgboost_model.py        # XGBoost 模型
-│   │   ├── moirai_model.py         # Moirai 模型
-│   │   ├── stacking_manager.py     # Stacking 管理器
-│   │   └── model_registry.py       # 模型注册表
-│   │
-│   ├── services/                   # 业务服务
-│   │   ├── prediction_service.py   # 预测服务
-│   │   ├── training_service.py     # 训练服务
-│   │   ├── trade_service.py        # 交易服务
-│   │   ├── forecaster_manager.py   # 预测调度器
-│   │   └── carbon_engine.py        # 碳引擎
-│   │
-│   ├── runner/                     # 运行器
-│   │   ├── pipeline_router.py      # 管道路由
-│   │   ├── auto_diagnosis.py       # 自动诊断
-│   │   └── lstm_runner.py          # LSTM 运行器
-│   │
-│   ├── pipeline/                   # 处理管道
-│   │   └── lstm_pipeline.py        # LSTM 管道
-│   │
-│   ├── trade_logic/                # 交易逻辑
-│   │   └── optimizer.py            # 优化器
-│   │
-│   ├── visualization/              # 可视化
-│   │   └── echarts_options.py      # ECharts 配置
-│   │
-│   └── utils/                      # 通用工具
-│       ├── data_processor.py       # 数据处理器
-│       ├── env.py                  # 环境工具
-│       ├── eta.py                  # ETA 计算
-│       └── paths.py                # 路径工具
-│
-├── data/                           # 数据目录
-│   └── personal_carbon_footprint_behavior.csv
-│
-├── models/                         # 模型存储
-│   └── checkpoints/                # 模型检查点
-│
-├── logs/                           # 日志目录
-│   ├── plots/                      # 生成的图表
-│   └── metrics/                    # 评估指标
-│
-└── docs/                           # 文档目录
-    ├── 项目执行流程详解.md
+├── README.md                       # 项目文档
+├── data/
+│   └── cardio_train.csv           # 心血管训练数据 (70,000 样本)
+├── src/
+│   ├── data_processing.py         # 数据处理模块
+│   ├── models.py                  # Stacking 集成模型
+│   └── services/
+│       └── service_layer.py       # 服务层 (SHAP/决策/积分)
+├── models/
+│   └── checkpoints/               # 模型检查点
+├── logs/                          # 日志文件
+└── docs/                          # 详细文档
     ├── 模型训练与预测流程详解.md
     └── 调参优化指南.md
 ```
 
 ---
 
+## 📊 API 文档
+
+### HealthMindService
+
+```python
+from src.services.service_layer import HealthMindService
+
+# 初始化服务
+service = HealthMindService()
+
+# 预测并解释
+prediction = service.predict_and_explain(
+    user_id='user_001',
+    X=user_features,  # shape: (1, 17)
+    feature_names=feature_names
+)
+
+# 生成干预计划
+plan = service.generate_intervention_plan(prediction)
+
+# 记录用户行为
+result = service.record_user_action(
+    user_id='user_001',
+    recommendation_idx=0,
+    completed=True
+)
+
+# 获取用户仪表板
+dashboard = service.get_user_dashboard('user_001')
+```
+
+### StackingEnsemble
+
+```python
+from src.models import create_healthmind_ensemble
+
+# 创建模型
+ensemble = create_healthmind_ensemble(
+    input_dim=17,
+    target_accuracy=0.70
+)
+
+# 训练
+result = ensemble.train(
+    X_train, y_train,
+    X_val, y_val,
+    is_sequential=False
+)
+
+# 预测
+predictions = ensemble.predict(X_test)
+
+# 评估
+metrics = ensemble.evaluate(X_test, y_test)
+```
+
+---
+
 ## 🧠 模型说明
 
-### LSTM (长短期记忆网络)
+### Stacking 集成架构
 
-```python
-# 配置参数
-input_dim = 10        # 输入特征维度
-hidden_dim = 128      # 隐藏层维度
-num_layers = 2        # LSTM 层数
-bidirectional = True  # 双向 LSTM
-```
+| 组件 | 类型 | 作用 | 超参数 |
+|------|------|------|--------|
+| LSTM | 双层双向 RNN | 捕捉健康指标周期性 | hidden=64, layers=2 |
+| GRU | 双层双向 RNN | 捕捉健康指标周期性 | hidden=64, layers=2 |
+| XGBoost | 梯度提升树 | 挖掘非线性交互 | depth=5, lr=0.1 |
+| Moirai | Mock 模型 | 冷启动预测 | - |
+| MetaLearner | 逻辑回归 | 场景感知融合 | - |
 
-**特点：**
-- 双向 LSTM 捕捉前后文依赖
-- 自适应学习率调度 (ReduceLROnPlateau)
-- 早停机制防止过拟合
+### 特征工程
 
-### XGBoost (极端梯度提升)
-
-```python
-# 配置参数
-n_estimators = 100    # 树的数量
-learning_rate = 0.1   # 学习率
-max_depth = 6         # 树的最大深度
-```
-
-**特点：**
-- 特征重要性分析
-- 内置正则化防止过拟合
-- 训练速度快，解释性强
-
-### Stacking 融合
-
-```
-第一层（基学习器）: LSTM, GRU, XGBoost, Moirai
-                    ↓
-第二层（元学习器）: XGBoost Regressor
-                    ↓
-              最终预测结果
-```
-
-**融合策略：**
-- 简单平均：各模型预测的算术平均
-- 加权融合：元模型学习最优权重
-- 动态选择：根据时间尺度调整权重
+| 特征 | 说明 | 转换方式 |
+|------|------|---------|
+| age_years | 年龄（岁） | age / 365.25 |
+| bmi | BMI 指数 | weight / (height/100)² |
+| bmi_encoded | BMI 分类编码 | 0-3 |
+| bp_diff | 血压差 | ap_hi - ap_lo |
+| map | 平均动脉压 | (ap_hi + 2*ap_lo) / 3 |
+| bp_ratio | 血压比值 | ap_hi / ap_lo |
+| bp_encoded | 血压分类编码 | 0-4 |
 
 ---
 
-## 📖 使用指南
+## ⚙️ 配置说明
 
-### 前端界面使用
-
-#### 1. 智能预测页面
-- 选择时间维度（天/周/月）
-- 查看各模型预测曲线
-- 对比融合预测结果
-- 查看模型贡献度雷达图
-
-#### 2. 减碳计划页面
-- 获取个性化饮食建议
-- 查看无肉日提醒
-- 浏览低碳食谱推荐
-
-#### 3. 碳积分荣誉页面
-- 查看本周获得积分
-- 追踪总积分和等级
-- 查看积分明细
-
-#### 4. 全局指标页面
-- 查看模型性能指标
-- 对比各模型误差
-- 分析历史表现
-
-### 命令行使用
-
-#### 训练单个模型
+### 环境变量 (.env)
 
 ```bash
-# 训练 XGBoost
-python main.py --train --models 3
+# API 配置
+API_HOST=localhost
+API_PORT=5000
 
-# 训练 LSTM
-python main.py --train --models 1
+# 模型配置
+MODEL_PATH=models/checkpoints
+RANDOM_SEED=42
+
+# 日志配置
+LOG_LEVEL=INFO
+LOG_FILE=logs/app.log
 ```
 
-#### 启用 Stacking 融合
+### 模型配置 (EnsembleConfig)
 
-```bash
-# LSTM + XGBoost 融合
-python main.py --train --stack --models 1,3
-
-# 全模型融合
-python main.py --train --stack --models 1,2,3,4
+```python
+@dataclass
+class EnsembleConfig:
+    # 数据划分
+    train_ratio: float = 0.8
+    val_ratio: float = 0.1
+    test_ratio: float = 0.1
+    
+    # LSTM/GRU 超参数
+    rnn_hidden_dim: int = 64
+    rnn_num_layers: int = 2
+    rnn_dropout: float = 0.3
+    rnn_epochs: int = 50
+    rnn_batch_size: int = 32
+    rnn_lr: float = 1e-3
+    
+    # XGBoost 超参数
+    xgb_n_estimators: int = 100
+    xgb_max_depth: int = 5
+    xgb_lr: float = 0.1
+    xgb_subsample: float = 0.8
+    
+    # 元学习器
+    meta_learner_type: str = 'logistic'
+    
+    # 性能目标
+    target_accuracy: float = 0.70
 ```
 
 ---
 
-## 📊 性能指标
+## ❓ 常见问题
 
-### 模型性能对比（验证集）
+### Q1: streamlit-echarts 安装失败
 
-| 模型 | MAE | RMSE | R² | 准确率 |
-|------|-----|------|----|--------|
-| LSTM | 2.01 | 2.54 | -0.02 | 50.6% |
-| GRU | 2.01 | 2.54 | -0.02 | 50.5% |
-| XGBoost | 0.25 | 0.33 | 0.98 | 95.7% |
-| Moirai | 1.96 | 2.44 | -0.02 | 46.8% |
-| **Stacking 融合** | **1.21** | **1.51** | **0.64** | **83.8%** |
+**解决方案**：
+```bash
+# 方法 1：使用特定版本
+pip install streamlit-echarts==0.4.0
 
-> 注：XGBoost 在本数据集上表现最佳，Stacking 融合有效整合了各模型优势。
+# 方法 2：国内源
+pip install streamlit-echarts==0.4.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
-### 分类指标（碳排放等级预测）
+### Q2: pyecharts 图表报错
 
-| 模型 | 精确率 | 召回率 | F1 分数 |
-|------|--------|--------|---------|
-| XGBoost | 0.25 | 0.59 | 0.35 |
-| LSTM | 0.24 | 0.55 | 0.34 |
-| Stacking | 0.84 | 0.84 | 0.84 |
+**常见错误及修复**：
+- `is_fill` 参数不存在 → 改用 `linestyle_opts`
+- `PointerOpts` 不存在 → 移除该参数
+- `TitleOpts` 的 `pos_center` 不存在 → 移除该参数
+
+### Q3: 模型训练准确率低
+
+**优化建议**：
+1. 增加训练轮次：`rnn_epochs=100`
+2. 调整学习率：`rnn_lr=5e-4`
+3. 增加 Dropout：`rnn_dropout=0.4`
+4. 数据增强：增加时序模拟样本数
+
+### Q4: SHAP 归因不可用
+
+**说明**：SHAP 库为可选依赖，未安装时自动切换到基于规则的归因方法。
+
+```bash
+# 安装完整 SHAP 支持
+pip install shap
+```
 
 ---
 
 ## 👥 开发团队
 
-**EcoLife 团队**
-
-- 项目地址：https://github.com/disdorqin/EcoLife
-- 参赛组别：计算机设计大赛
+| 角色 | 职责 |
+|------|------|
+| 算法工程师 | 模型开发与优化 |
+| 后端工程师 | API 与服务层开发 |
+| 前端工程师 | Streamlit 界面开发 |
+| 数据工程师 | 数据处理与管道 |
 
 ---
 
 ## 📄 许可证
 
-本项目仅供学习和竞赛使用。
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
 
 ---
 
 ## 🙏 致谢
 
-感谢计算机设计大赛组委会提供的平台！
+- 心血管疾病数据集：[Kaggle Cardiovascular Disease](https://www.kaggle.com/datasets/sulianova/cardiovascular-disease-dataset)
+- 可视化库：[Pyecharts](https://pyecharts.org/)
+- Web 框架：[Streamlit](https://streamlit.io/)
+- 深度学习：[PyTorch](https://pytorch.org/)
 
 ---
 
-<div align="center">
+## 📞 联系方式
 
-**🌿 EcoLife - 让每一次呼吸都更清新**
+- 项目仓库：https://github.com/disdorqin/EcoLife
+- 问题反馈：请在 GitHub 提交 Issue
 
-Made with ❤️ by EcoLife Team
+---
 
-</div>
+*最后更新：2026 年 3 月*
